@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChronoFlow - Premium Timesheet Portal</title>
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="ChronoFlow is a premium, responsive timesheet management system designed for modern remote and onsite teams. Track clock-ins, locations, and manage logs seamlessly.">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Custom stylesheet -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="dark-theme">
+    <!-- App Container -->
+    <div id="app-root">
+        <!-- Main Navigation Header (Hidden on Login screen) -->
+        <header id="app-header" class="main-header glass hidden">
+            <div class="header-container">
+                <div class="logo-area">
+                    <div class="logo-icon">
+                        <i data-lucide="clock" class="icon-pulse"></i>
+                    </div>
+                    <span class="logo-text">Chrono<span class="text-accent">Flow</span></span>
+                </div>
+                
+                <nav class="desktop-nav" id="desktop-nav">
+                    <!-- Nav items will be dynamically updated based on role -->
+                </nav>
+                
+                <div class="user-menu">
+                    <div class="user-info">
+                        <span id="user-display-name" class="user-name">Loading...</span>
+                        <span id="user-display-role" class="user-role-badge">Role</span>
+                    </div>
+                    <button id="logout-btn" class="btn btn-outline btn-sm" aria-label="Log Out">
+                        <i data-lucide="log-out"></i>
+                        <span>Log Out</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Workspace -->
+        <main class="main-content">
+            <!-- Loader Screen -->
+            <section id="view-loader" class="view-panel center-content active">
+                <div class="spinner-container">
+                    <div class="spinner"></div>
+                    <p class="loader-text">Loading ChronoFlow...</p>
+                </div>
+            </section>
+
+            <!-- Login View -->
+            <section id="view-login" class="view-panel hidden">
+                <div class="login-wrapper">
+                    <div class="login-header">
+                        <div class="login-logo">
+                            <i data-lucide="clock"></i>
+                        </div>
+                        <h1>Welcome to ChronoFlow</h1>
+                        <p>Sign in to manage your timesheets and track your work hours.</p>
+                    </div>
+                    
+                    <div class="login-card glass">
+                        <form id="login-form" autocomplete="on">
+                            <div class="form-group">
+                                <label for="login-username">Username</label>
+                                <div class="input-with-icon">
+                                    <i data-lucide="user"></i>
+                                    <input type="text" id="login-username" name="username" placeholder="Enter your username" required autocomplete="username">
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="login-password">Password</label>
+                                <div class="input-with-icon">
+                                    <i data-lucide="lock"></i>
+                                    <input type="password" id="login-password" name="password" placeholder="Enter your password" required autocomplete="current-password">
+                                </div>
+                            </div>
+                            
+                            <button type="submit" id="login-submit-btn" class="btn btn-primary btn-block">
+                                <span>Sign In</span>
+                                <i data-lucide="arrow-right"></i>
+                            </button>
+                        </form>
+                        
+                        <div class="login-info-box">
+                            <p class="info-title"><i data-lucide="info"></i> Quick Demo Access</p>
+                            <div class="demo-creds">
+                                <div><strong>Admin:</strong> <code>admin</code> / <code>admin123</code></div>
+                                <div><strong>Candidate:</strong> <code>employee1</code> / <code>emp123</code></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Employee Dashboard View -->
+            <section id="view-employee" class="view-panel hidden">
+                <div class="dashboard-container">
+                    <!-- Clock Panel -->
+                    <div class="card glass clock-card hero-gradient">
+                        <div class="clock-display">
+                            <div id="live-time" class="time-string">00:00:00</div>
+                            <div id="live-date" class="date-string">Wednesday, June 10, 2026</div>
+                        </div>
+                        
+                        <div class="clock-status-box">
+                            <span class="status-indicator-dot" id="status-dot"></span>
+                            <span id="clock-status-text" class="status-text">Clocked Out</span>
+                        </div>
+                        
+                        <!-- Note & Clock Action Button -->
+                        <div class="clock-controls">
+                            <div class="form-group checkout-notes-group" id="notes-container">
+                                <label for="clock-notes">What are you working on? (Optional)</label>
+                                <textarea id="clock-notes" placeholder="Enter task summary, notes, or milestones..." rows="2" maxlength="250"></textarea>
+                            </div>
+                            
+                            <!-- Location indicator -->
+                            <div id="location-badge" class="location-badge info-badge hidden">
+                                <i data-lucide="map-pin"></i>
+                                <span id="location-text">Detecting Location...</span>
+                            </div>
+                            
+                            <button id="clock-action-btn" class="btn clock-btn btn-success">
+                                <i data-lucide="play" class="btn-icon"></i>
+                                <span>Clock In</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Personal Metrics -->
+                    <div class="stats-grid">
+                        <div class="card glass stat-card">
+                            <div class="stat-icon icon-emerald"><i data-lucide="calendar"></i></div>
+                            <div class="stat-info">
+                                <span class="stat-label">Hours Worked Today</span>
+                                <span id="emp-stat-today" class="stat-value">0.0h</span>
+                            </div>
+                        </div>
+                        <div class="card glass stat-card">
+                            <div class="stat-icon icon-indigo"><i data-lucide="trending-up"></i></div>
+                            <div class="stat-info">
+                                <span class="stat-label">Hours This Week</span>
+                                <span id="emp-stat-week" class="stat-value">0.0h</span>
+                            </div>
+                        </div>
+                        <div class="card glass stat-card">
+                            <div class="stat-icon icon-purple"><i data-lucide="clipboard-list"></i></div>
+                            <div class="stat-info">
+                                <span class="stat-label">Total Shifts Logged</span>
+                                <span id="emp-stat-approved" class="stat-value">0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Personal Logs History -->
+                    <div class="card glass table-card">
+                        <div class="card-header">
+                            <h2 class="card-title"><i data-lucide="history"></i> My Work History</h2>
+                            <div class="filter-controls-simple">
+                                <button id="emp-refresh-btn" class="btn btn-icon btn-outline" title="Refresh Logs" aria-label="Refresh Logs">
+                                    <i data-lucide="rotate-cw"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="table-responsive">
+                            <table class="data-table" id="emp-logs-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Clock In</th>
+                                        <th>Clock Out</th>
+                                        <th>Total Hours</th>
+                                        <th>Location Captured</th>
+                                        <th>Work Notes</th>
+                                        <th>Client</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="emp-logs-body">
+                                    <!-- Populated by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="empty-state hidden" id="emp-logs-empty">
+                            <i data-lucide="folder-open"></i>
+                            <p>No hours logged for you yet. Hit "Clock In" to begin!</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Admin Dashboard View -->
+            <section id="view-admin" class="view-panel hidden">
+                <div class="dashboard-container">
+                    
+                    <!-- Admin Statistics -->
+                    <div class="stats-grid">
+                        <div class="card glass stat-card clickable" id="stat-active-now">
+                            <div class="stat-icon icon-emerald"><i data-lucide="users"></i></div>
+                            <div class="stat-info">
+                                <span class="stat-label">Currently Clocked In</span>
+                                <span id="admin-stat-active" class="stat-value">0</span>
+                            </div>
+                        </div>
+                        <div class="card glass stat-card">
+                            <div class="stat-icon icon-purple"><i data-lucide="user-check"></i></div>
+                            <div class="stat-info">
+                                <span class="stat-label">Placed Candidates</span>
+                                <span id="admin-stat-employees" class="stat-value">0</span>
+                            </div>
+                        </div>
+                        <div class="card glass stat-card">
+                            <div class="stat-icon icon-indigo"><i data-lucide="briefcase"></i></div>
+                            <div class="stat-info">
+                                <span class="stat-label">Active Clients</span>
+                                <span id="admin-stat-clients" class="stat-value">0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts & Actions Section -->
+                    <div class="admin-grid-top">
+                        <!-- Chart Card -->
+                        <div class="card glass chart-card">
+                            <div class="card-header">
+                                <h2 class="card-title"><i data-lucide="bar-chart-3"></i> Hours Billed by Client Company</h2>
+                            </div>
+                            <div class="chart-container-inner">
+                                <canvas id="deptHoursChart"></canvas>
+                            </div>
+                        </div>
+                        
+                        <!-- Quick Actions Panel -->
+                        <div class="card glass quick-actions-card">
+                            <div class="card-header">
+                                <h2 class="card-title"><i data-lucide="zap"></i> Quick Admin Actions</h2>
+                            </div>
+                            <div class="actions-grid">
+                                <button id="admin-create-emp-btn" class="btn btn-primary btn-action-card">
+                                    <i data-lucide="user-plus"></i>
+                                    <span>Create Candidate</span>
+                                </button>
+                                <button id="admin-add-log-btn" class="btn btn-outline btn-action-card">
+                                    <i data-lucide="calendar-plus"></i>
+                                    <span>Add Manual Entry</span>
+                                </button>
+                                <button id="admin-export-btn" class="btn btn-success btn-action-card">
+                                    <i data-lucide="download"></i>
+                                    <span>Export Master CSV</span>
+                                </button>
+                                <button id="admin-monthly-download-btn" class="btn btn-indigo btn-outline btn-action-card">
+                                    <i data-lucide="file-down"></i>
+                                    <span>Monthly Export</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Filter Control Panel -->
+                    <div class="card glass filter-card">
+                        <div class="filter-header">
+                            <h3><i data-lucide="sliders-horizontal"></i> Filter & Search Records</h3>
+                            <button id="admin-clear-filters" class="btn btn-link btn-sm">Clear Filters</button>
+                        </div>
+                        <div class="filter-grid">
+                            <div class="form-group-filter">
+                                <label for="filter-employee">Candidate</label>
+                                <select id="filter-employee">
+                                    <option value="all">All Candidates</option>
+                                    <!-- Populated by JS -->
+                                </select>
+                            </div>
+                            <div class="form-group-filter">
+                                <label for="filter-client">Client Company</label>
+                                <select id="filter-client">
+                                    <option value="all">All Client MNCs</option>
+                                    <!-- Populated by JS -->
+                                </select>
+                            </div>
+                            <div class="form-group-filter">
+                                <label for="filter-start-date">Start Date</label>
+                                <input type="date" id="filter-start-date">
+                            </div>
+                            <div class="form-group-filter">
+                                <label for="filter-end-date">End Date</label>
+                                <input type="date" id="filter-end-date">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Main Timesheets Table -->
+                    <div class="card glass table-card">
+                        <div class="card-header">
+                            <h2 class="card-title" id="timesheet-table-title"><i data-lucide="file-spreadsheet"></i> Master Timesheets</h2>
+                            <span class="badge badge-info" id="timesheet-count-badge">0 entries</span>
+                        </div>
+                        
+                        <div class="table-responsive">
+                            <table class="data-table" id="admin-timesheets-table">
+                                <thead>
+                                    <tr>
+                                        <th>Candidate</th>
+                                        <th>Date</th>
+                                        <th>Clock In</th>
+                                        <th>Clock Out</th>
+                                        <th>Total Hours</th>
+                                        <th>Notes</th>
+                                        <th>Location</th>
+                                        <th>Client</th>
+                                        <th class="text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-timesheets-body">
+                                    <!-- Populated by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="empty-state hidden" id="admin-timesheets-empty">
+                            <i data-lucide="clipboard-x"></i>
+                            <p>No timesheet records match your filter criteria.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- App Footer (Copyright and responsive bottom navigation) -->
+        <footer class="main-footer">
+            <div class="footer-container">
+                <p>&copy; 2026 ChronoFlow. Engineered for performance.</p>
+            </div>
+        </footer>
+
+        <!-- Mobile Bottom Nav Bar (visible only on mobile) -->
+        <nav id="mobile-bottom-nav" class="mobile-bottom-nav glass hidden">
+            <!-- Dynamic bottom icons based on user role -->
+        </nav>
+
+        <!-- TOAST SYSTEM -->
+        <div id="toast-container" class="toast-container"></div>
+
+        <!-- ================= MODALS ================= -->
+
+        <!-- Create Employee Modal -->
+       <div id="modal-create-employee" class="modal-overlay hidden">
+           <div class="modal-card glass">
+               <div class="modal-header">
+                   <h3><i data-lucide="user-plus"></i> Create New Candidate</h3>
+                   <button class="btn-close-modal" aria-label="Close Modal"><i data-lucide="x"></i></button>
+               </div>
+                <form id="create-employee-form">
+                    <div class="modal-body">
+                        <div class="form-row-2">
+                            <div class="form-group">
+                                <label for="emp-fullname">Full Name</label>
+                                <input type="text" id="emp-fullname" required placeholder="e.g. John Doe">
+                            </div>
+                            <div class="form-group">
+                                <label for="emp-username">Username</label>
+                                <input type="text" id="emp-username" required placeholder="e.g. jdoe12">
+                            </div>
+                        </div>
+                        
+                        <div class="form-row-2">
+                            <div class="form-group">
+                                <label for="emp-password">Password</label>
+                                <input type="password" id="emp-password" required placeholder="Min 6 characters">
+                            </div>
+                            <div class="form-group">
+                                <label for="emp-role">Role</label>
+                                <select id="emp-role" required>
+                                    <option value="employee" selected>Employee</option>
+                                    <option value="admin">Administrator</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row-2">
+                            <div class="form-group">
+                                <label for="emp-department">Client Company</label>
+                                <select id="emp-department" required>
+                                    <option value="Microsoft">Microsoft</option>
+                                    <option value="Google">Google</option>
+                                    <option value="Meta">Meta</option>
+                                    <option value="Amazon">Amazon</option>
+                                    <option value="Netflix">Netflix</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="emp-hourly-rate">Hourly Rate ($)</label>
+                                <input type="number" id="emp-hourly-rate" required min="1" step="0.5" value="25.00" placeholder="e.g. 25">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline btn-close-modal-btn">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Create Account</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Create/Edit Timesheet Log Modal (Manual or Edit) -->
+        <div id="modal-edit-log" class="modal-overlay hidden">
+            <div class="modal-card glass">
+                <div class="modal-header">
+                    <h3 id="edit-log-title"><i data-lucide="edit"></i> Adjust Timesheet Log</h3>
+                    <button class="btn-close-modal" aria-label="Close Modal"><i data-lucide="x"></i></button>
+                </div>
+                <form id="edit-log-form">
+                    <input type="hidden" id="edit-log-id">
+                    <div class="modal-body">
+                        <div class="form-group" id="edit-log-employee-container">
+                            <label for="edit-log-employee">Candidate</label>
+                            <select id="edit-log-employee" required>
+                                <!-- Populated dynamically -->
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="edit-log-date">Date</label>
+                            <input type="date" id="edit-log-date" required>
+                        </div>
+
+                        <div class="form-row-2">
+                            <div class="form-group">
+                                <label for="edit-log-in">Clock In Time</label>
+                                <input type="time" id="edit-log-in" required step="1">
+                            </div>
+                            <div class="form-group">
+                                <label for="edit-log-out">Clock Out Time</label>
+                                <input type="time" id="edit-log-out" placeholder="Still active (leave blank)">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="edit-log-notes">Work Notes / Tasks</label>
+                            <textarea id="edit-log-notes" rows="3" placeholder="Enter details of tasks accomplished..."></textarea>
+                        </div>
+
+                        <div class="form-row-2">
+                            <div class="form-group">
+                                <label for="edit-log-client">Client Company</label>
+                                <select id="edit-log-client" required>
+                                    <option value="Microsoft">Microsoft</option>
+                                    <option value="Google">Google</option>
+                                    <option value="Meta">Meta</option>
+                                    <option value="Amazon">Amazon</option>
+                                    <option value="Netflix">Netflix</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="edit-log-location">Location Mock</label>
+                                <input type="text" id="edit-log-location" placeholder="e.g. Boston Office / Remote (Simulated)">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline btn-close-modal-btn">Cancel</button>
+                        <button type="submit" id="edit-log-submit-btn" class="btn btn-primary">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Monthly Candidate Downloader Modal -->
+        <div id="modal-monthly-download" class="modal-overlay hidden">
+            <div class="modal-card glass">
+                <div class="modal-header">
+                    <h3><i data-lucide="file-down"></i> Monthly Candidate Downloader</h3>
+                    <button class="btn-close-modal" aria-label="Close Modal"><i data-lucide="x"></i></button>
+                </div>
+                <form id="monthly-download-form">
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="monthly-download-employee">Select Candidate</label>
+                            <select id="monthly-download-employee" required>
+                                <!-- Populated dynamically -->
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="monthly-download-date">Select Month</label>
+                            <input type="month" id="monthly-download-date" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline btn-close-modal-btn">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Generate & Download CSV</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Script imports -->
+    <script src="app.js"></script>
+</body>
+</html>
