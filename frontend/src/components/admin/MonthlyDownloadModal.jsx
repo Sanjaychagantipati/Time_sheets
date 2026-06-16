@@ -67,8 +67,10 @@ export default function MonthlyDownloadModal({ isOpen, onClose, setToast }) {
           <div className="p-6 flex flex-col gap-4">
             
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Select Candidate</label>
+              <label htmlFor="download-monthly-candidate" className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Select Candidate</label>
               <select
+                id="download-monthly-candidate"
+                name="userId"
                 required
                 value={userId}
                 onChange={(e) => setUserId(e.target.value)}
@@ -83,8 +85,10 @@ export default function MonthlyDownloadModal({ isOpen, onClose, setToast }) {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Select Month</label>
+              <label htmlFor="download-monthly-month" className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Select Month</label>
               <input
+                id="download-monthly-month"
+                name="yearMonth"
                 type="month"
                 required
                 value={yearMonth}

@@ -147,7 +147,7 @@ export default function LoginPage() {
             </div>
             <div className="flex flex-col gap-1.5 text-gray-400">
               <div><strong>Admin:</strong> <code className="bg-[#1a2336] text-indigo-300 px-1 py-0.5 rounded font-mono">admin</code> / <code className="bg-[#1a2336] text-indigo-300 px-1 py-0.5 rounded font-mono">admin123</code></div>
-              <div><strong>Candidate:</strong> <code className="bg-[#1a2336] text-indigo-300 px-1 py-0.5 rounded font-mono">employee</code> / <code className="bg-[#1a2336] text-indigo-300 px-1 py-0.5 rounded font-mono">emp123</code></div>
+              <div><strong>Candidate:</strong> <code className="bg-[#1a2336] text-indigo-300 px-1 py-0.5 rounded font-mono">employee1</code> / <code className="bg-[#1a2336] text-indigo-300 px-1 py-0.5 rounded font-mono">emp123</code></div>
             </div>
           </div>
         </div>

@@ -161,10 +161,12 @@ export default function ClockCard({ onShiftLogged, setToast }) {
       <div className="w-full max-w-md relative z-10">
         {isClockedIn && (
           <div className="mb-5 flex flex-col gap-2">
-            <label className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+            <label htmlFor="shift-notes" className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider">
               What are you working on? (Optional)
             </label>
             <textarea
+              id="shift-notes"
+              name="notes"
               className="bg-[#1a2336] border border-white/5 text-white rounded-lg p-3 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 resize-none"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}

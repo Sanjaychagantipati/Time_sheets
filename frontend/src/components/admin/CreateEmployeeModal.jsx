@@ -68,8 +68,10 @@ export default function CreateEmployeeModal({ isOpen, onClose, onSuccess, setToa
             
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Full Name</label>
+                <label htmlFor="create-candidate-name" className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Full Name</label>
                 <input
+                  id="create-candidate-name"
+                  name="name"
                   type="text"
                   required
                   value={name}
@@ -79,8 +81,10 @@ export default function CreateEmployeeModal({ isOpen, onClose, onSuccess, setToa
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Username</label>
+                <label htmlFor="create-candidate-username" className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Username</label>
                 <input
+                  id="create-candidate-username"
+                  name="username"
                   type="text"
                   required
                   value={username}
@@ -93,8 +97,10 @@ export default function CreateEmployeeModal({ isOpen, onClose, onSuccess, setToa
 
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Password</label>
+                <label htmlFor="create-candidate-password" className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Password</label>
                 <input
+                  id="create-candidate-password"
+                  name="password"
                   type="password"
                   required
                   value={password}
@@ -104,8 +110,10 @@ export default function CreateEmployeeModal({ isOpen, onClose, onSuccess, setToa
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Role</label>
+                <label htmlFor="create-candidate-role" className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Role</label>
                 <select
+                  id="create-candidate-role"
+                  name="role"
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
                   className="bg-[#1a2336] border border-white/5 text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 transition"
@@ -118,8 +126,10 @@ export default function CreateEmployeeModal({ isOpen, onClose, onSuccess, setToa
 
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Client Company</label>
+                <label htmlFor="create-candidate-client" className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Client Company</label>
                 <select
+                  id="create-candidate-client"
+                  name="clientCompany"
                   value={clientCompany}
                   onChange={(e) => setClientCompany(e.target.value)}
                   className="bg-[#1a2336] border border-white/5 text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 transition"
@@ -132,8 +142,10 @@ export default function CreateEmployeeModal({ isOpen, onClose, onSuccess, setToa
                 </select>
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Hourly Rate ($)</label>
+                <label htmlFor="create-candidate-rate" className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Hourly Rate ($)</label>
                 <input
+                  id="create-candidate-rate"
+                  name="rate"
                   type="number"
                   required
                   min="1"

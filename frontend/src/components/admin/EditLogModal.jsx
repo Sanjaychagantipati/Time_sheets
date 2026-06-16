@@ -137,8 +137,10 @@ export default function EditLogModal({ isOpen, logId, onClose, onSuccess, setToa
             <div className="p-6 flex flex-col gap-4">
               
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Candidate</label>
+                <label htmlFor="edit-log-candidate" className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Candidate</label>
                 <select
+                  id="edit-log-candidate"
+                  name="userId"
                   required
                   value={userId}
                   onChange={(e) => setUserId(e.target.value)}
@@ -154,8 +156,10 @@ export default function EditLogModal({ isOpen, logId, onClose, onSuccess, setToa
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Date</label>
+                <label htmlFor="edit-log-date" className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Date</label>
                 <input
+                  id="edit-log-date"
+                  name="date"
                   type="date"
                   required
                   value={date}
@@ -166,8 +170,10 @@ export default function EditLogModal({ isOpen, logId, onClose, onSuccess, setToa
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Clock In Time</label>
+                  <label htmlFor="edit-log-clockin" className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Clock In Time</label>
                   <input
+                    id="edit-log-clockin"
+                    name="clockIn"
                     type="time"
                     required
                     step="1"
@@ -177,8 +183,10 @@ export default function EditLogModal({ isOpen, logId, onClose, onSuccess, setToa
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Clock Out Time</label>
+                  <label htmlFor="edit-log-clockout" className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Clock Out Time</label>
                   <input
+                    id="edit-log-clockout"
+                    name="clockOut"
                     type="time"
                     step="1"
                     value={clockOut}
@@ -190,8 +198,10 @@ export default function EditLogModal({ isOpen, logId, onClose, onSuccess, setToa
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Work Notes / Tasks</label>
+                <label htmlFor="edit-log-notes" className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Work Notes / Tasks</label>
                 <textarea
+                  id="edit-log-notes"
+                  name="notes"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Enter details of tasks accomplished..."
@@ -202,8 +212,10 @@ export default function EditLogModal({ isOpen, logId, onClose, onSuccess, setToa
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Client Company</label>
+                  <label htmlFor="edit-log-client" className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Client Company</label>
                   <select
+                    id="edit-log-client"
+                    name="clientCompany"
                     value={clientCompany}
                     onChange={(e) => setClientCompany(e.target.value)}
                     className="bg-[#1a2336] border border-white/5 text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 transition"
@@ -216,8 +228,10 @@ export default function EditLogModal({ isOpen, logId, onClose, onSuccess, setToa
                   </select>
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Location Label</label>
+                  <label htmlFor="edit-log-location" className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Location Label</label>
                   <input
+                    id="edit-log-location"
+                    name="location"
                     type="text"
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
