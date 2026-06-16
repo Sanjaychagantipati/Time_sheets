@@ -223,6 +223,18 @@ export const timesheetService = {
       return response.data;
     }
   },
+  
+  deleteLogs: async (logIds) => {
+    if (isMockMode()) {
+      const logs = getTimesheets();
+      const filtered = logs.filter((t) => !logIds.includes(t.id));
+      saveTimesheets(filtered);
+      return { message: 'Timesheet records deleted' };
+    } else {
+      const response = await api.post('/admin/timesheets/bulk-delete', { ids: logIds });
+      return response.data;
+    }
+  },
 
   createEmployee: async (employeeData) => {
     if (isMockMode()) {

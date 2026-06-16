@@ -1,4 +1,5 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
+import { authService } from '../services/authService';
 
 export const AuthContext = createContext(null);
 
@@ -29,7 +30,7 @@ export const AuthProvider = ({ children }) => {
   // Logout function - clears state and localStorage
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('vt_user');
+    authService.logout();
   };
 
   return (

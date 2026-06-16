@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Play, Square, MapPin } from 'lucide-react';
 import { timesheetService } from '../../services/timesheetService';
 import { useAuth } from '../../context/AuthContext';
@@ -12,29 +12,30 @@ export default function ClockCard({ onShiftLogged, setToast }) {
   const [notes, setNotes] = useState('');
   const [locationStr, setLocationStr] = useState('');
   const [detecting, setDetecting] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const checkStatus = useCallback(async () => {
+    if (!user) return;
+    try {
+      const res = await timesheetService.getActiveClockIn(user.id);
+      if (res.hasActive) {
+        setIsClockedIn(true);
+        setActiveLog(res.log);
+        setLocationStr(res.log.location);
+      } else {
+        setIsClockedIn(false);
+        setActiveLog(null);
+        setLocationStr('');
+      }
+    } catch (err) {
+      console.error("Error checking active session", err);
+    }
+  }, [user]);
 
   // Sync active status on mount and when user session changes
   useEffect(() => {
-    if (!user) return;
-    
-    async function checkStatus() {
-      try {
-        const res = await timesheetService.getActiveClockIn(user.id);
-        if (res.hasActive) {
-          setIsClockedIn(true);
-          setActiveLog(res.log);
-          setLocationStr(res.log.location);
-        } else {
-          setIsClockedIn(false);
-          setActiveLog(null);
-          setLocationStr('');
-        }
-      } catch (err) {
-        console.error("Error checking active session", err);
-      }
-    }
     checkStatus();
-  }, [user]);
+  }, [checkStatus]);
 
   // Update Ticker / Calendar text
   useEffect(() => {
@@ -88,7 +89,7 @@ export default function ClockCard({ onShiftLogged, setToast }) {
 
   const handleClockIn = async () => {
     setDetecting(true);
-    let coordsText = "Simulated Location";
+    let coordsText;
     const mockAddresses = [
       'HQ Boston, MA',
       'NYC Branch Office',
@@ -115,32 +116,34 @@ export default function ClockCard({ onShiftLogged, setToast }) {
     }
 
     try {
+      setSubmitting(true);
       const res = await timesheetService.clockIn(user.id, coordsText);
-      setIsClockedIn(true);
-      setActiveLog(res.log);
-      setLocationStr(coordsText);
       setDetecting(false);
       setToast({ message: 'Successfully Clocked In!', type: 'success' });
+      await checkStatus();
     } catch (err) {
       console.error(err);
       setDetecting(false);
       setToast({ message: 'Failed to clock in.', type: 'error' });
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleClockOut = async () => {
     if (!activeLog) return;
     try {
+      setSubmitting(true);
       const res = await timesheetService.clockOut(activeLog.id, notes);
-      setIsClockedIn(false);
-      setActiveLog(null);
       setNotes('');
-      setLocationStr('');
       setToast({ message: `Clocked Out. Hours Logged: ${res.log.hours}h`, type: 'success' });
+      await checkStatus();
       if (onShiftLogged) onShiftLogged();
     } catch (err) {
       console.error(err);
       setToast({ message: 'Failed to clock out.', type: 'error' });
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -187,7 +190,7 @@ export default function ClockCard({ onShiftLogged, setToast }) {
 
         <button
           onClick={isClockedIn ? handleClockOut : handleClockIn}
-          disabled={detecting}
+          disabled={detecting || submitting}
           className={`w-full py-4 text-base font-bold rounded-xl flex items-center justify-center gap-2 transition duration-200 ${
             isClockedIn
               ? 'bg-rose-500 hover:bg-rose-600 text-white shadow-rose-500/20 shadow-lg'
@@ -195,7 +198,7 @@ export default function ClockCard({ onShiftLogged, setToast }) {
           }`}
         >
           {isClockedIn ? <Square size={16} /> : <Play size={16} />}
-          <span>{detecting ? 'Detecting Location...' : isClockedIn ? 'Clock Out' : 'Clock In'}</span>
+          <span>{detecting ? 'Detecting Location...' : submitting ? 'Processing...' : isClockedIn ? 'Clock Out' : 'Clock In'}</span>
         </button>
       </div>
     </div>

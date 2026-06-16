@@ -29,9 +29,13 @@ export const authService = {
     } else {
       const response = await api.post('/auth/login', { username, password });
       const { token, user } = response.data;
+      const userData = {
+        ...user,
+        token: token
+      };
       localStorage.setItem('vt_token', token);
-      localStorage.setItem('vt_user', JSON.stringify(user));
-      return { token, user };
+      localStorage.setItem('vt_user', JSON.stringify(userData));
+      return { token, user: userData };
     }
   },
 

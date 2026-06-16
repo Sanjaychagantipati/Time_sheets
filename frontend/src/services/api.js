@@ -18,7 +18,18 @@ const api = axios.create({
 // Inject JWT authorization headers automatically
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('vt_token');
+    let token = localStorage.getItem('vt_token');
+    if (!token) {
+      const storedUser = localStorage.getItem('vt_user');
+      if (storedUser) {
+        try {
+          const parsed = JSON.parse(storedUser);
+          token = parsed.token;
+        } catch (e) {
+          // ignore
+        }
+      }
+    }
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -30,10 +41,10 @@ api.interceptors.request.use(
 // Gracefully handle session expiry (401 Unauthorized)
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     if (error.response && error.response.status === 401) {
-      localStorage.removeItem('vt_token');
-      localStorage.removeItem('vt_user');
+      const { authService } = await import('./authService');
+      authService.logout();
       window.location.href = '/';
     }
     return Promise.reject(error);

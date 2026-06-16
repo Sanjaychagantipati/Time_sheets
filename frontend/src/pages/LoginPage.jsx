@@ -84,10 +84,12 @@ export default function LoginPage() {
 
             {/* Username Input */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Username</label>
+              <label htmlFor="login-username" className="text-xs font-bold text-gray-400 uppercase tracking-wider">Username</label>
               <div className="relative">
                 <User size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
                 <input
+                  id="login-username"
+                  name="username"
                   type="text"
                   value={username}
                   onChange={(e) => {
@@ -107,10 +109,12 @@ export default function LoginPage() {
 
             {/* Password Input */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Password</label>
+              <label htmlFor="login-password" className="text-xs font-bold text-gray-400 uppercase tracking-wider">Password</label>
               <div className="relative">
                 <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
                 <input
+                  id="login-password"
+                  name="password"
                   type="password"
                   value={password}
                   onChange={(e) => {
