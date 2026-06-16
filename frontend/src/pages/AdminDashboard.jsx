@@ -54,6 +54,9 @@ export default function AdminDashboard() {
   const [isDownloadOpen, setIsDownloadOpen] = useState(false);
   const [selectedLogId, setSelectedLogId] = useState(null);
 
+  // Bulk Selection State
+  const [selectedTimesheets, setSelectedTimesheets] = useState([]);
+
   // Chart data
   const [chartData, setChartData] = useState({
     labels: ['Microsoft', 'Google', 'Meta', 'Amazon', 'Netflix'],
@@ -86,6 +89,7 @@ export default function AdminDashboard() {
       };
       const timesheets = await timesheetService.getAdminTimesheets(filters);
       setLogs(timesheets);
+      setSelectedTimesheets((prev) => prev.filter((id) => timesheets.some((t) => t.id === id)));
 
       // Calculate Client Weekly Billed Hours
       const clientHours = { Microsoft: 0, Google: 0, Meta: 0, Amazon: 0, Netflix: 0 };
@@ -143,6 +147,7 @@ export default function AdminDashboard() {
     setFilterClient('all');
     setFilterStartDate('');
     setFilterEndDate('');
+    setSelectedTimesheets([]);
     setToast({ message: 'Filters cleared', type: 'info' });
   };
 
@@ -180,6 +185,36 @@ export default function AdminDashboard() {
   const handleAddManualClick = () => {
     setSelectedLogId(null);
     setIsEditOpen(true);
+  };
+
+  const toggleSelection = (id) => {
+    setSelectedTimesheets((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (logs.length === 0) return;
+    if (selectedTimesheets.length === logs.length) {
+      setSelectedTimesheets([]);
+    } else {
+      setSelectedTimesheets(logs.map((log) => log.id));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedTimesheets.length === 0) return;
+    const count = selectedTimesheets.length;
+    if (confirm(`Are you sure you want to permanently delete the ${count} selected timesheet entries?`)) {
+      try {
+        await timesheetService.deleteLogs(selectedTimesheets);
+        setToast({ message: `${count} timesheet records deleted`, type: 'success' });
+        setSelectedTimesheets([]);
+        loadData();
+      } catch (err) {
+        setToast({ message: 'Failed to delete selected records.', type: 'error' });
+      }
+    }
   };
 
   // Chart styling options
@@ -334,8 +369,10 @@ export default function AdminDashboard() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           
           <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Candidate</label>
+            <label htmlFor="filter-candidate" className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Candidate</label>
             <select
+              id="filter-candidate"
+              name="filterEmployee"
               value={filterEmployee}
               onChange={(e) => setFilterEmployee(e.target.value)}
               className="bg-[#1a2336] border border-white/5 text-white rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 transition"
@@ -350,8 +387,10 @@ export default function AdminDashboard() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Client Company</label>
+            <label htmlFor="filter-client" className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Client Company</label>
             <select
+              id="filter-client"
+              name="filterClient"
               value={filterClient}
               onChange={(e) => setFilterClient(e.target.value)}
               className="bg-[#1a2336] border border-white/5 text-white rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 transition"
@@ -366,8 +405,10 @@ export default function AdminDashboard() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Start Date</label>
+            <label htmlFor="filter-start-date" className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Start Date</label>
             <input
+              id="filter-start-date"
+              name="filterStartDate"
               type="date"
               value={filterStartDate}
               onChange={(e) => setFilterStartDate(e.target.value)}
@@ -376,8 +417,10 @@ export default function AdminDashboard() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">End Date</label>
+            <label htmlFor="filter-end-date" className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">End Date</label>
             <input
+              id="filter-end-date"
+              name="filterEndDate"
               type="date"
               value={filterEndDate}
               onChange={(e) => setFilterEndDate(e.target.value)}
@@ -395,9 +438,27 @@ export default function AdminDashboard() {
             <FileSpreadsheet size={18} className="text-indigo-400" />
             <span>Master Timesheets</span>
           </h2>
-          <span className="px-2.5 py-1 text-xs font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-full">
-            {logs.length} entries
-          </span>
+          <div className="flex items-center gap-3">
+            {selectedTimesheets.length > 0 && (
+              <span className="text-xs text-gray-400 font-semibold">
+                {selectedTimesheets.length} selected
+              </span>
+            )}
+            <button
+              onClick={handleBulkDelete}
+              disabled={selectedTimesheets.length === 0}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition duration-200 cursor-pointer disabled:cursor-not-allowed ${
+                selectedTimesheets.length === 0
+                  ? 'border-white/5 bg-[#1a2336]/20 text-gray-500'
+                  : 'border-rose-500/20 bg-rose-500/10 text-rose-400 hover:border-rose-500 hover:text-white hover:bg-rose-500 shadow-lg shadow-rose-500/10'
+              }`}
+            >
+              Delete Selected
+            </button>
+            <span className="px-2.5 py-1 text-xs font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-full">
+              {logs.length} entries
+            </span>
+          </div>
         </div>
 
         {loading ? (
@@ -415,6 +476,14 @@ export default function AdminDashboard() {
             <table className="w-full text-left border-collapse text-sm">
               <thead>
                 <tr className="border-b border-white/5 bg-white/[0.02] text-gray-400 uppercase text-[10px] tracking-wider font-bold">
+                  <th className="px-6 py-4 w-12">
+                    <input
+                      type="checkbox"
+                      checked={logs.length > 0 && selectedTimesheets.length === logs.length}
+                      onChange={toggleSelectAll}
+                      className="rounded border-white/10 bg-[#1a2336] text-indigo-500 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                    />
+                  </th>
                   <th className="px-6 py-4">Candidate</th>
                   <th className="px-6 py-4">Client</th>
                   <th className="px-6 py-4">Date</th>
@@ -431,7 +500,15 @@ export default function AdminDashboard() {
                 {logs.map((log) => {
                   const candidate = employees.find((u) => u.id === log.userId) || { name: 'Unknown Candidate' };
                   return (
-                    <tr key={log.id} className="hover:bg-white/[0.02] transition duration-150">
+                    <tr key={log.id} className={`hover:bg-white/[0.02] transition duration-150 ${selectedTimesheets.includes(log.id) ? 'bg-white/[0.01]' : ''}`}>
+                      <td className="px-6 py-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedTimesheets.includes(log.id)}
+                          onChange={() => toggleSelection(log.id)}
+                          className="rounded border-white/10 bg-[#1a2336] text-indigo-500 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                        />
+                      </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-col">
                           <span className="font-bold text-white">{candidate.name}</span>
