@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Play, Square, MapPin } from 'lucide-react';
+import { Play, Square, MapPin, AlertTriangle } from 'lucide-react';
 import { timesheetService } from '../../services/timesheetService';
 import { useAuth } from '../../context/AuthContext';
 
@@ -13,6 +13,7 @@ export default function ClockCard({ onShiftLogged, setToast }) {
   const [locationStr, setLocationStr] = useState('');
   const [detecting, setDetecting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const checkStatus = useCallback(async () => {
     if (!user) return;
@@ -192,7 +193,7 @@ export default function ClockCard({ onShiftLogged, setToast }) {
         )}
 
         <button
-          onClick={isClockedIn ? handleClockOut : handleClockIn}
+          onClick={isClockedIn ? () => setShowConfirm(true) : handleClockIn}
           disabled={detecting || submitting}
           className={`w-full py-4 text-base font-bold rounded-xl flex items-center justify-center gap-2 transition duration-300 cursor-pointer disabled:cursor-not-allowed ${
             isClockedIn
@@ -210,6 +211,54 @@ export default function ClockCard({ onShiftLogged, setToast }) {
           </span>
         </button>
       </div>
+
+      {/* Clock Out Confirmation Modal */}
+      {showConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Overlay backdrop */}
+          <div 
+            className="absolute inset-0 bg-black/85 backdrop-blur-sm animate-fade-in" 
+            onClick={() => !submitting && setShowConfirm(false)}
+          ></div>
+          
+          {/* Card panel */}
+          <div className="relative z-10 w-full max-w-sm bg-[#111111] border border-[#2A2A2A] rounded-2xl overflow-hidden shadow-2xl p-6 animate-scale-in text-center">
+            <div className="w-12 h-12 rounded-full bg-orange-500/10 text-[#FF7A00] flex items-center justify-center mx-auto mb-4">
+              <AlertTriangle size={24} />
+            </div>
+            
+            <h3 className="text-lg font-bold text-white mb-3">Confirm Clock Out</h3>
+            
+            <div className="text-sm text-[#B3B3B3] mb-6 space-y-2 leading-relaxed">
+              <p>Are you sure you want to clock out?</p>
+              <p>Please verify that you have completed your work for this session.</p>
+              <p className="text-xs text-gray-400">This action will save your current working hours.</p>
+            </div>
+            
+            <div className="flex gap-3 justify-center">
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={() => setShowConfirm(false)}
+                className="px-4 py-2.5 flex-1 border border-[#2A2A2A] hover:bg-white/5 text-[#B3B3B3] hover:text-white rounded-xl text-sm font-semibold transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={async () => {
+                  await handleClockOut();
+                  setShowConfirm(false);
+                }}
+                className="px-4 py-2.5 flex-1 bg-[#FF7A00] hover:bg-[#FF8C1A] disabled:bg-[#FF7A00]/50 text-white rounded-xl text-sm font-semibold shadow-lg shadow-[#FF7A00]/20 transition cursor-pointer disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+              >
+                {submitting ? 'Clocking Out...' : 'Clock Out'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
