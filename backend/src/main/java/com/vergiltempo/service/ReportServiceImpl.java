@@ -231,16 +231,51 @@ public class ReportServiceImpl implements ReportService {
             Font presentStatusFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8, new Color(0x1B, 0x5E, 0x20));
             Font holidayStatusFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8, new Color(0xB7, 0x1C, 0x1C));
 
-            // Header Layout: Staffing Agency Title
+            // Top Header Table (contains title/subtitle on left, logo on right)
+            PdfPTable headerTable = new PdfPTable(2);
+            headerTable.setWidthPercentage(100);
+            headerTable.setWidths(new float[]{70f, 30f});
+            headerTable.setSpacingAfter(15);
+
+            // Left Cell (Text)
+            PdfPCell leftCell = new PdfPCell();
+            leftCell.setBorder(Rectangle.NO_BORDER);
+            leftCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+
             Paragraph companyTitle = new Paragraph(data.getCompanyName(), mainTitleFont);
-            companyTitle.setAlignment(Element.ALIGN_LEFT);
             companyTitle.setSpacingAfter(2);
-            document.add(companyTitle);
+            leftCell.addElement(companyTitle);
 
             Paragraph appTitle = new Paragraph("Vergil Tempo Workforce Time Management System", subtitleFont);
-            appTitle.setAlignment(Element.ALIGN_LEFT);
-            appTitle.setSpacingAfter(15);
-            document.add(appTitle);
+            leftCell.addElement(appTitle);
+            headerTable.addCell(leftCell);
+
+            // Right Cell (Logo)
+            PdfPCell rightCell = new PdfPCell();
+            rightCell.setBorder(Rectangle.NO_BORDER);
+            rightCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+            rightCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+
+            try {
+                org.springframework.core.io.ClassPathResource resource = 
+                        new org.springframework.core.io.ClassPathResource("assets/logo/vergilremnant.png");
+                if (resource.exists()) {
+                    try (java.io.InputStream is = resource.getInputStream()) {
+                        byte[] imageBytes = is.readAllBytes();
+                        Image logo = Image.getInstance(imageBytes);
+                        logo.scaleToFit(140f, 140f); // Width: 140px, Height: Auto
+                        logo.setAlignment(Element.ALIGN_RIGHT);
+                        rightCell.addElement(logo);
+                    }
+                } else {
+                    System.out.println("Warning: vergilremnant.png logo not found in classpath resources");
+                }
+            } catch (Exception e) {
+                System.err.println("Warning: Failed to load company logo: " + e.getMessage());
+            }
+            headerTable.addCell(rightCell);
+
+            document.add(headerTable);
 
             // Report Metadata Panel
             Paragraph reportTitle = new Paragraph("MONTHLY EMPLOYEE ATTENDANCE REPORT", sectionTitleFont);
