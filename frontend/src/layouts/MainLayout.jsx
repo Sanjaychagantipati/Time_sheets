@@ -16,16 +16,16 @@ export default function MainLayout({ children }) {
   if (!user) return <>{children}</>;
 
   return (
-    <div className="min-h-screen bg-[#0b0f19] text-[#f3f4f6] flex flex-col font-sans">
+    <div className="min-h-screen bg-[#1A1A1A] text-white flex flex-col font-sans">
       {/* Header Navigation Panel */}
-      <header className="sticky top-0 z-50 bg-[#121826]/80 backdrop-blur-md border-b border-white/5">
+      <header className="sticky top-0 z-50 bg-[#111111]/90 backdrop-blur-md border-b border-[#FF7A00]/20">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center shadow-lg">
-              <Clock size={20} className="animate-pulse text-white" />
+            <div className="w-10 h-10 rounded-lg bg-black border border-[#FF7A00]/20 flex items-center justify-center shadow-lg shadow-[#FF7A00]/5">
+              <Clock size={20} className="animate-pulse text-[#FF7A00]" />
             </div>
-            <span className="text-xl font-bold tracking-tight">
-              Vergil<span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">Tempo</span>
+            <span className="text-xl font-bold tracking-tight text-white">
+              Vergil<span className="text-[#FF7A00]">Tempo</span>
             </span>
           </div>
 
@@ -36,7 +36,7 @@ export default function MainLayout({ children }) {
                 to="/admin"
                 className={({ isActive }) =>
                   `px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition ${
-                    isActive ? 'bg-indigo-500 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                    isActive ? 'bg-[#FF7A00] text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'
                   }`
                 }
               >
@@ -48,7 +48,7 @@ export default function MainLayout({ children }) {
                 to="/employee"
                 className={({ isActive }) =>
                   `px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition ${
-                    isActive ? 'bg-indigo-500 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                    isActive ? 'bg-[#FF7A00] text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'
                   }`
                 }
               >
@@ -60,12 +60,12 @@ export default function MainLayout({ children }) {
 
           <div className="flex items-center gap-4">
             <div className="text-right hidden sm:block">
-              <div className="text-sm font-semibold">{user.name}</div>
-              <div className="text-[10px] text-indigo-400 font-bold uppercase tracking-wider">{user.role}</div>
+              <div className="text-sm font-semibold text-white">{user.name}</div>
+              <div className="text-[10px] text-[#FF7A00] font-bold uppercase tracking-wider">{user.role}</div>
             </div>
             <button
               onClick={handleLogout}
-              className="px-3 py-1.5 border border-white/10 hover:border-gray-500 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition text-gray-300 hover:text-white hover:bg-white/5"
+              className="px-3 py-1.5 border border-white/10 hover:border-[#FF7A00] text-xs font-semibold rounded-lg flex items-center gap-1.5 transition text-gray-300 hover:text-white hover:bg-[#FF7A00]/10"
               aria-label="Log Out"
             >
               <LogOut size={13} />
@@ -81,20 +81,20 @@ export default function MainLayout({ children }) {
       </main>
 
       {/* Footer copyright */}
-      <footer className="border-t border-white/5 py-4 bg-[#0b0f19]">
+      <footer className="border-t border-white/5 py-4 bg-[#111111]">
         <div className="max-w-7xl mx-auto px-6 flex justify-between items-center text-xs text-gray-500">
           <p>&copy; 2026 Vergil Tempo. Engineered for performance.</p>
         </div>
       </footer>
 
       {/* Mobile Bottom Navigation Bar (Visible only on mobile devices) */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#121826]/90 backdrop-blur-lg border-t border-white/5 py-2.5 px-6 flex items-center justify-around z-50">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#111111]/90 backdrop-blur-lg border-t border-[#FF7A00]/20 py-2.5 px-6 flex items-center justify-around z-50">
         {user.role.toLowerCase() === 'admin' ? (
           <NavLink
             to="/admin"
             className={({ isActive }) =>
               `flex flex-col items-center text-[10px] font-medium transition ${
-                isActive ? 'text-indigo-400' : 'text-gray-400'
+                isActive ? 'text-[#FF7A00]' : 'text-gray-400'
               }`
             }
           >
@@ -106,7 +106,7 @@ export default function MainLayout({ children }) {
             to="/employee"
             className={({ isActive }) =>
               `flex flex-col items-center text-[10px] font-medium transition ${
-                isActive ? 'text-indigo-400' : 'text-gray-400'
+                isActive ? 'text-[#FF7A00]' : 'text-gray-400'
               }`
             }
           >

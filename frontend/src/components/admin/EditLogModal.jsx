@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { CalendarPlus, Edit3, X } from 'lucide-react';
 import { timesheetService } from '../../services/timesheetService';
+import { useClientCompanies } from '../../context/ClientCompanyContext';
+import SearchableDropdown from '../SearchableDropdown';
 
 export default function EditLogModal({ isOpen, logId, onClose, onSuccess, setToast }) {
+  const { companies } = useClientCompanies();
   const [employees, setEmployees] = useState([]);
   const [userId, setUserId] = useState('');
   const [date, setDate] = useState('');
   const [clockIn, setClockIn] = useState('09:00:00');
   const [clockOut, setClockOut] = useState('17:00:00');
   const [notes, setNotes] = useState('');
-  const [clientCompany, setClientCompany] = useState('Microsoft');
+  const [clientCompany, setClientCompany] = useState(companies[0] || '');
   const [location, setLocation] = useState('HQ Office (Manual)');
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -39,7 +42,7 @@ export default function EditLogModal({ isOpen, logId, onClose, onSuccess, setToa
       setClockIn('09:00:00');
       setClockOut('17:00:00');
       setNotes('');
-      setClientCompany('Microsoft');
+      setClientCompany(companies[0] || '');
       setLocation('HQ Office (Manual)');
       return;
     }
@@ -55,7 +58,7 @@ export default function EditLogModal({ isOpen, logId, onClose, onSuccess, setToa
           setClockIn(log.clockIn);
           setClockOut(log.clockOut || '');
           setNotes(log.notes || '');
-          setClientCompany(log.clientCompany || 'Microsoft');
+          setClientCompany(log.clientCompany || companies[0] || '');
           setLocation(log.location || '');
         }
       } catch (err) {
@@ -65,12 +68,25 @@ export default function EditLogModal({ isOpen, logId, onClose, onSuccess, setToa
       }
     }
     loadLogDetails();
-  }, [isOpen, logId]);
+  }, [isOpen, logId, companies]);
+
+  // Initialize client company default selection
+  useEffect(() => {
+    if (companies.length > 0 && !clientCompany) {
+      setClientCompany(companies[0]);
+    }
+  }, [companies, clientCompany]);
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const trimmedClientCompany = clientCompany.trim();
+    if (!trimmedClientCompany) {
+      setToast({ message: 'Client Company selection is required.', type: 'error' });
+      return;
+    }
+
     setSubmitting(true);
     try {
       const payload = {
@@ -80,7 +96,7 @@ export default function EditLogModal({ isOpen, logId, onClose, onSuccess, setToa
         clockOut: clockOut || null,
         notes,
         location,
-        clientCompany,
+        clientCompany: trimmedClientCompany,
       };
 
       if (logId) {
@@ -107,52 +123,48 @@ export default function EditLogModal({ isOpen, logId, onClose, onSuccess, setToa
       <div className="absolute inset-0 bg-[#0b0f19]/80 backdrop-blur-sm" onClick={onClose}></div>
 
       {/* Card panel */}
-      <div className="relative z-10 w-full max-w-lg glass bg-[#121826]/90 border border-white/5 rounded-2xl overflow-hidden shadow-2xl animate-scale-in">
-        <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between">
+      <div className="relative z-10 w-full max-w-lg glass bg-[#121826]/90 border border-white/5 rounded-2xl overflow-visible shadow-2xl animate-scale-in">
+        <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between rounded-t-2xl">
           <h3 className="text-base font-bold flex items-center gap-2">
             {logId ? (
               <>
-                <Edit3 size={16} className="text-indigo-400" />
+                <Edit3 size={16} className="text-[#FF7A00]" />
                 <span>Adjust Timesheet Record</span>
               </>
             ) : (
               <>
-                <CalendarPlus size={16} className="text-indigo-400" />
+                <CalendarPlus size={16} className="text-[#FF7A00]" />
                 <span>Add Manual Timesheet Entry</span>
               </>
             )}
           </h3>
-          <button onClick={onClose} className="p-1 text-gray-400 hover:text-white rounded transition" aria-label="Close modal">
+          <button onClick={onClose} className="p-1 text-gray-400 hover:text-white rounded transition cursor-pointer" aria-label="Close modal">
             <X size={16} />
           </button>
         </div>
 
         {loading ? (
           <div className="py-12 flex flex-col items-center justify-center gap-3">
-            <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+            <div className="w-8 h-8 border-2 border-[#FF7A00] border-t-transparent rounded-full animate-spin"></div>
             <span className="text-xs text-gray-400">Loading details...</span>
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
             <div className="p-6 flex flex-col gap-4">
               
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="edit-log-candidate" className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Candidate</label>
-                <select
+              <div className="flex flex-col gap-1.5 relative">
+                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Candidate</label>
+                <SearchableDropdown
                   id="edit-log-candidate"
-                  name="userId"
-                  required
-                  value={userId}
-                  onChange={(e) => setUserId(e.target.value)}
-                  disabled={!!logId} // Don't let admin change owner on edit
-                  className="bg-[#1a2336] border border-white/5 text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 transition disabled:opacity-50"
-                >
-                  {employees.map((emp) => (
-                    <option key={emp.id} value={emp.id}>
-                      {emp.name} ({emp.clientCompany || 'N/A'})
-                    </option>
-                  ))}
-                </select>
+                  placeholder="Select Candidate..."
+                  items={employees.map((emp) => ({
+                    value: emp.id,
+                    label: `${emp.name} (${emp.clientCompany || 'N/A'})`
+                  }))}
+                  selectedValue={userId}
+                  onSelect={(val) => setUserId(val)}
+                  disabled={!!logId}
+                />
               </div>
 
               <div className="flex flex-col gap-1.5">
@@ -164,7 +176,7 @@ export default function EditLogModal({ isOpen, logId, onClose, onSuccess, setToa
                   required
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="bg-[#1a2336] border border-white/5 text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 transition"
+                  className="bg-[#1A1A1A] border border-[#2A2A2A] text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#FF7A00] focus:ring-1 focus:ring-[#FF7A00] transition"
                 />
               </div>
 
@@ -179,7 +191,7 @@ export default function EditLogModal({ isOpen, logId, onClose, onSuccess, setToa
                     step="1"
                     value={clockIn}
                     onChange={(e) => setClockIn(e.target.value)}
-                    className="bg-[#1a2336] border border-white/5 text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 transition"
+                    className="bg-[#1A1A1A] border border-[#2A2A2A] text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#FF7A00] focus:ring-1 focus:ring-[#FF7A00] transition"
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
@@ -192,7 +204,7 @@ export default function EditLogModal({ isOpen, logId, onClose, onSuccess, setToa
                     value={clockOut}
                     onChange={(e) => setClockOut(e.target.value)}
                     placeholder="Still active (leave blank)"
-                    className="bg-[#1a2336] border border-white/5 text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 transition"
+                    className="bg-[#1A1A1A] border border-[#2A2A2A] text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#FF7A00] focus:ring-1 focus:ring-[#FF7A00] transition"
                   />
                 </div>
               </div>
@@ -206,26 +218,24 @@ export default function EditLogModal({ isOpen, logId, onClose, onSuccess, setToa
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Enter details of tasks accomplished..."
                   rows={2}
-                  className="bg-[#1a2336] border border-white/5 text-white rounded-xl p-3 text-sm focus:outline-none focus:border-indigo-500 transition resize-none"
+                  className="bg-[#1A1A1A] border border-[#2A2A2A] text-white rounded-xl p-3 text-sm focus:outline-none focus:border-[#FF7A00] focus:ring-1 focus:ring-[#FF7A00] transition resize-none"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <label htmlFor="edit-log-client" className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Client Company</label>
-                  <select
+                <div className="flex flex-col gap-1.5 relative">
+                  <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Client Company</label>
+                  <SearchableDropdown
                     id="edit-log-client"
-                    name="clientCompany"
-                    value={clientCompany}
-                    onChange={(e) => setClientCompany(e.target.value)}
-                    className="bg-[#1a2336] border border-white/5 text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 transition"
-                  >
-                    <option value="Microsoft">Microsoft</option>
-                    <option value="Google">Google</option>
-                    <option value="Meta">Meta</option>
-                    <option value="Amazon">Amazon</option>
-                    <option value="Netflix">Netflix</option>
-                  </select>
+                    placeholder="Select Company..."
+                    items={companies.map((c) => ({
+                      value: c,
+                      label: c
+                    }))}
+                    selectedValue={clientCompany}
+                    onSelect={(val) => setClientCompany(val)}
+                    direction="up"
+                  />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label htmlFor="edit-log-location" className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Location Label</label>
@@ -236,25 +246,25 @@ export default function EditLogModal({ isOpen, logId, onClose, onSuccess, setToa
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
                     placeholder="e.g. Remote (Simulated)"
-                    className="bg-[#1a2336] border border-white/5 text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 transition"
+                    className="bg-[#1A1A1A] border border-[#2A2A2A] text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#FF7A00] focus:ring-1 focus:ring-[#FF7A00] transition"
                   />
                 </div>
               </div>
 
             </div>
 
-            <div className="px-6 py-4 border-t border-white/5 flex justify-end gap-3">
+            <div className="px-6 py-4 border-t border-white/5 flex justify-end gap-3 bg-black/10 rounded-b-2xl">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 border border-white/10 hover:border-gray-500 text-gray-300 hover:text-white rounded-xl text-sm font-semibold transition"
+                className="px-4 py-2 border border-white/10 hover:border-gray-500 text-gray-300 hover:text-white rounded-xl text-sm font-semibold transition cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={submitting}
-                className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 disabled:bg-indigo-500/50 text-white rounded-xl text-sm font-semibold shadow-lg shadow-indigo-500/20 transition"
+                className="px-4 py-2 bg-[#FF7A00] hover:bg-[#FF8C1A] disabled:bg-[#FF7A00]/50 text-white rounded-xl text-sm font-semibold shadow-lg shadow-[#FF7A00]/20 transition cursor-pointer"
               >
                 {submitting ? 'Saving...' : logId ? 'Save Changes' : 'Add Entry'}
               </button>

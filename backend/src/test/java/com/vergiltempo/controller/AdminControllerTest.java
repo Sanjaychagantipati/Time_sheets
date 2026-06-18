@@ -49,7 +49,7 @@ public class AdminControllerTest {
                 .totalEmployees(10)
                 .activeClients(5)
                 .totalClients(5)
-                .todaysHours(BigDecimal.valueOf(15.5))
+                .timesheetsSubmittedToday(2)
                 .build();
 
         when(adminService.getStats()).thenReturn(stats);
@@ -58,7 +58,7 @@ public class AdminControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.currentlyClockedIn").value(3))
                 .andExpect(jsonPath("$.totalEmployees").value(10))
-                .andExpect(jsonPath("$.todaysHours").value(15.5));
+                .andExpect(jsonPath("$.timesheetsSubmittedToday").value(2));
     }
 
     @Test
@@ -179,5 +179,40 @@ public class AdminControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value("emp-123"))
                 .andExpect(jsonPath("$.username").value("john"));
+    }
+
+    @Test
+    public void testCreateCandidate() throws Exception {
+        UserResponse response = UserResponse.builder()
+                .id("emp-123")
+                .username("john")
+                .build();
+
+        CreateUserRequest request = CreateUserRequest.builder()
+                .name("John")
+                .username("john")
+                .password("password")
+                .role("employee")
+                .clientCompany("Microsoft")
+                .rate(BigDecimal.valueOf(35.0))
+                .build();
+
+        when(adminService.createEmployee(any(CreateUserRequest.class))).thenReturn(response);
+
+        mockMvc.perform(post("/api/admin/candidates")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value("emp-123"))
+                .andExpect(jsonPath("$.username").value("john"));
+    }
+
+    @Test
+    public void testDeleteEmployee() throws Exception {
+        doNothing().when(adminService).deleteEmployee("emp-123");
+
+        mockMvc.perform(delete("/api/admin/employees/emp-123"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("Employee permanently deleted"));
     }
 }

@@ -24,7 +24,9 @@ public class AdminController {
 
     @GetMapping("/stats")
     public ResponseEntity<AdminStatsResponse> getStats() {
-        return ResponseEntity.ok(adminService.getStats());
+        AdminStatsResponse stats = adminService.getStats();
+        System.out.println(stats.getTimesheetsSubmittedToday());
+        return ResponseEntity.ok(stats);
     }
 
     @GetMapping("/timesheets")
@@ -63,9 +65,10 @@ public class AdminController {
         return ResponseEntity.ok(Map.of("message", "Selected timesheet records permanently deleted"));
     }
 
-    @PostMapping("/users")
+    @PostMapping({"/users", "/candidates"})
     public ResponseEntity<UserResponse> createEmployee(
             @Valid @RequestBody CreateUserRequest request) {
+        System.out.println("Create Candidate Request Received");
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(adminService.createEmployee(request));
     }
@@ -73,5 +76,11 @@ public class AdminController {
     @GetMapping("/employees")
     public ResponseEntity<List<UserResponse>> getEmployees() {
         return ResponseEntity.ok(adminService.getEmployees());
+    }
+
+    @DeleteMapping("/employees/{id}")
+    public ResponseEntity<Map<String, String>> deleteEmployee(@PathVariable String id) {
+        adminService.deleteEmployee(id);
+        return ResponseEntity.ok(Map.of("message", "Employee permanently deleted"));
     }
 }

@@ -41,16 +41,15 @@ public class AdminServiceImpl implements AdminService {
         long currentlyClockedIn = timesheetRepository.countByClockOutIsNull();
         long totalEmployees = userRepository.countByRole(Role.EMPLOYEE);
         long activeClients = clientRepository.countByActiveTrue();
-        long totalClients = clientRepository.count();
-        BigDecimal todaysHours = timesheetRepository.sumHoursByDate(LocalDate.now());
+        long submittedToday = timesheetRepository.countDistinctUserByDateAndClockOutIsNotNull(LocalDate.now());
 
         return AdminStatsResponse.builder()
                 .currentlyClockedIn(currentlyClockedIn)
                 .activeEmployees(currentlyClockedIn)
                 .totalEmployees(totalEmployees)
                 .activeClients(activeClients)
-                .totalClients(totalClients)
-                .todaysHours(todaysHours)
+                .totalClients(activeClients)
+                .timesheetsSubmittedToday(submittedToday)
                 .build();
     }
 
@@ -75,21 +74,33 @@ public class AdminServiceImpl implements AdminService {
         User user = userRepository.findById(request.getUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + request.getUserId()));
 
-        Client client = clientRepository.findByName(request.getClientCompany())
-                .orElseThrow(() -> new ResourceNotFoundException("Client company not found: " + request.getClientCompany()));
+        Client client = getOrCreateClient(request.getClientCompany());
 
         BigDecimal hours = calculateHours(request.getClockIn(), request.getClockOut());
 
-        Timesheet timesheet = Timesheet.builder()
-                .user(user)
-                .client(client)
-                .date(request.getDate())
-                .clockIn(request.getClockIn().truncatedTo(ChronoUnit.SECONDS))
-                .clockOut(request.getClockOut() != null ? request.getClockOut().truncatedTo(ChronoUnit.SECONDS) : null)
-                .hours(hours)
-                .notes(request.getNotes())
-                .location(request.getLocation() != null ? request.getLocation() : "Office (Manual)")
-                .build();
+        java.util.Optional<Timesheet> existingOpt = timesheetRepository.findByUserAndDate(user, request.getDate());
+        Timesheet timesheet;
+        if (existingOpt.isPresent()) {
+            timesheet = existingOpt.get();
+            BigDecimal currentHours = timesheet.getHours() != null ? timesheet.getHours() : BigDecimal.ZERO;
+            timesheet.setHours(currentHours.add(hours != null ? hours : BigDecimal.ZERO));
+            timesheet.setClockIn(request.getClockIn().truncatedTo(ChronoUnit.SECONDS));
+            timesheet.setClockOut(request.getClockOut() != null ? request.getClockOut().truncatedTo(ChronoUnit.SECONDS) : null);
+            timesheet.setNotes(request.getNotes());
+            timesheet.setLocation(request.getLocation() != null ? request.getLocation() : "Office (Manual)");
+            timesheet.setClient(client);
+        } else {
+            timesheet = Timesheet.builder()
+                    .user(user)
+                    .client(client)
+                    .date(request.getDate())
+                    .clockIn(request.getClockIn().truncatedTo(ChronoUnit.SECONDS))
+                    .clockOut(request.getClockOut() != null ? request.getClockOut().truncatedTo(ChronoUnit.SECONDS) : null)
+                    .hours(hours)
+                    .notes(request.getNotes())
+                    .location(request.getLocation() != null ? request.getLocation() : "Office (Manual)")
+                    .build();
+        }
 
         Timesheet saved = timesheetRepository.save(timesheet);
         return mapToTimesheetLogDto(saved);
@@ -100,8 +111,7 @@ public class AdminServiceImpl implements AdminService {
         Timesheet timesheet = timesheetRepository.findById(logId)
                 .orElseThrow(() -> new ResourceNotFoundException("Timesheet entry not found: " + logId));
 
-        Client client = clientRepository.findByName(request.getClientCompany())
-                .orElseThrow(() -> new ResourceNotFoundException("Client company not found: " + request.getClientCompany()));
+        Client client = getOrCreateClient(request.getClientCompany());
 
         BigDecimal hours = calculateHours(request.getClockIn(), request.getClockOut());
 
@@ -141,8 +151,7 @@ public class AdminServiceImpl implements AdminService {
 
         Client client = null;
         if (request.getClientCompany() != null && !request.getClientCompany().trim().isEmpty()) {
-            client = clientRepository.findByName(request.getClientCompany())
-                    .orElseThrow(() -> new ResourceNotFoundException("Client company not found: " + request.getClientCompany()));
+            client = getOrCreateClient(request.getClientCompany());
         }
 
         Role role = Role.EMPLOYEE;
@@ -172,6 +181,19 @@ public class AdminServiceImpl implements AdminService {
         return employees.stream()
                 .map(this::mapToUserResponse)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public void deleteEmployee(String id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found: " + id));
+
+        // Delete all timesheet logs associated with this user
+        List<Timesheet> timesheets = timesheetRepository.findByUserId(id);
+        timesheetRepository.deleteAll(timesheets);
+
+        // Delete the user record
+        userRepository.delete(user);
     }
 
     private BigDecimal calculateHours(LocalTime clockIn, LocalTime clockOut) {
@@ -212,5 +234,36 @@ public class AdminServiceImpl implements AdminService {
                 .clientCompany(u.getClient() != null ? u.getClient().getName() : null)
                 .rate(u.getHourlyRate())
                 .build();
+    }
+
+    private Client getOrCreateClient(String name) {
+        if (name == null || name.trim().isEmpty()) {
+            return null;
+        }
+        String trimmedName = name.trim();
+        return clientRepository.findByName(trimmedName)
+                .orElseGet(() -> {
+                    String code = trimmedName.replaceAll("[^a-zA-Z0-9]", "").toUpperCase();
+                    if (code.length() > 10) {
+                        code = code.substring(0, 10);
+                    } else if (code.isEmpty()) {
+                        code = "CL" + String.format("%04d", (int)(Math.random() * 10000));
+                    } else {
+                        int counter = 1;
+                        String baseCode = code;
+                        while (clientRepository.findByCode(code).isPresent()) {
+                            String suffix = String.valueOf(counter);
+                            int limit = 10 - suffix.length();
+                            code = (baseCode.length() > limit ? baseCode.substring(0, limit) : baseCode) + suffix;
+                            counter++;
+                        }
+                    }
+                    Client newClient = Client.builder()
+                            .name(trimmedName)
+                            .code(code)
+                            .active(true)
+                            .build();
+                    return clientRepository.save(newClient);
+                });
     }
 }

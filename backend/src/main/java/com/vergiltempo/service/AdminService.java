@@ -12,4 +12,5 @@ public interface AdminService {
     void bulkDeleteTimesheets(List<String> logIds);
     UserResponse createEmployee(CreateUserRequest request);
     List<UserResponse> getEmployees();
+    void deleteEmployee(String id);
 }

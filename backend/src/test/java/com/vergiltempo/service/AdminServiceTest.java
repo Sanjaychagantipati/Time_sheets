@@ -42,8 +42,7 @@ public class AdminServiceTest {
         when(timesheetRepository.countByClockOutIsNull()).thenReturn(3L);
         when(userRepository.countByRole(Role.EMPLOYEE)).thenReturn(10L);
         when(clientRepository.countByActiveTrue()).thenReturn(5L);
-        when(clientRepository.count()).thenReturn(8L);
-        when(timesheetRepository.sumHoursByDate(LocalDate.now())).thenReturn(BigDecimal.valueOf(25.5));
+        when(timesheetRepository.countDistinctUserByDateAndClockOutIsNotNull(LocalDate.now())).thenReturn(2L);
 
         AdminStatsResponse stats = adminService.getStats();
 
@@ -52,8 +51,8 @@ public class AdminServiceTest {
         assertEquals(3, stats.getActiveEmployees());
         assertEquals(10, stats.getTotalEmployees());
         assertEquals(5, stats.getActiveClients());
-        assertEquals(8, stats.getTotalClients());
-        assertEquals(BigDecimal.valueOf(25.5), stats.getTodaysHours());
+        assertEquals(5, stats.getTotalClients());
+        assertEquals(2, stats.getTimesheetsSubmittedToday());
     }
 
     @Test

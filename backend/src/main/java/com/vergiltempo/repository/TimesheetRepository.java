@@ -25,6 +25,11 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, String> {
     // Find the currently active shift for a user (where clockOut is NULL)
     Optional<Timesheet> findByUserAndClockOutIsNull(User user);
 
+    Optional<Timesheet> findByUserAndDate(User user, LocalDate date);
+
+    @Query("SELECT COUNT(DISTINCT t.user.id) FROM Timesheet t WHERE t.date = :date AND (t.clockOut IS NOT NULL OR (t.hours IS NOT NULL AND t.hours > 0))")
+    long countDistinctUserByDateAndClockOutIsNotNull(@Param("date") LocalDate date);
+
 
     long countByClockOutIsNull();
 

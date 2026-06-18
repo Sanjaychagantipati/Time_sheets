@@ -13,5 +13,5 @@ public class AdminStatsResponse {
     private long totalEmployees;
     private long activeClients;
     private long totalClients; // same as activeClients
-    private BigDecimal todaysHours;
+    private long timesheetsSubmittedToday;
 }

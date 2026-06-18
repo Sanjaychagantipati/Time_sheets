@@ -64,13 +64,22 @@ public class TimesheetServiceImpl implements TimesheetService {
             throw new IllegalStateException("User is not assigned to any client company");
         }
 
-        Timesheet timesheet = Timesheet.builder()
-                .user(user)
-                .client(user.getClient())
-                .date(LocalDate.now())
-                .clockIn(LocalTime.now().truncatedTo(ChronoUnit.SECONDS))
-                .location(request.getLocation())
-                .build();
+        java.util.Optional<Timesheet> existingOpt = timesheetRepository.findByUserAndDate(user, LocalDate.now());
+        Timesheet timesheet;
+        if (existingOpt.isPresent()) {
+            timesheet = existingOpt.get();
+            timesheet.setClockIn(LocalTime.now().truncatedTo(ChronoUnit.SECONDS));
+            timesheet.setClockOut(null);
+            timesheet.setLocation(request.getLocation());
+        } else {
+            timesheet = Timesheet.builder()
+                    .user(user)
+                    .client(user.getClient())
+                    .date(LocalDate.now())
+                    .clockIn(LocalTime.now().truncatedTo(ChronoUnit.SECONDS))
+                    .location(request.getLocation())
+                    .build();
+        }
 
         Timesheet saved = timesheetRepository.save(timesheet);
 
@@ -99,10 +108,16 @@ public class TimesheetServiceImpl implements TimesheetService {
         BigDecimal decimalHours = BigDecimal.valueOf(minutes)
                 .divide(BigDecimal.valueOf(60), 2, RoundingMode.HALF_UP);
 
-        timesheet.setHours(decimalHours);
+        BigDecimal currentHours = timesheet.getHours() != null ? timesheet.getHours() : BigDecimal.ZERO;
+        timesheet.setHours(currentHours.add(decimalHours));
         timesheet.setNotes(request.getNotes());
 
         Timesheet saved = timesheetRepository.save(timesheet);
+
+        System.out.println("Clock Out Success");
+        System.out.println("Candidate ID: " + user.getId());
+        long submittedCount = timesheetRepository.countDistinctUserByDateAndClockOutIsNotNull(LocalDate.now());
+        System.out.println("Today's Submitted Count: " + submittedCount);
 
         return ClockOutResponse.builder()
                 .message("Clocked out successfully")

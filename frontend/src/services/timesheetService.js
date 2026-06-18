@@ -1,6 +1,47 @@
 import api, { isMockMode } from './api';
 import { getTimesheets, saveTimesheets, getUsers, saveUsers } from './mockDb';
 
+export const getCandidateCurrency = (userId) => {
+  try {
+    const stored = localStorage.getItem('vt_user_currencies');
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (parsed[userId]) {
+        return parsed[userId];
+      }
+    }
+  } catch (e) {
+    console.error('Error reading currency from localStorage', e);
+  }
+  return 'USD';
+};
+
+export const getCurrencySymbol = (userId) => {
+  const currency = getCandidateCurrency(userId);
+  if (currency === 'INR') return '₹';
+  if (currency === 'EUR') return '€';
+  return '$';
+};
+
+export const setCandidateCurrency = (userId, currency) => {
+  try {
+    const stored = localStorage.getItem('vt_user_currencies') || '{}';
+    const parsed = JSON.parse(stored);
+    parsed[userId] = currency;
+    localStorage.setItem('vt_user_currencies', JSON.stringify(parsed));
+  } catch (e) {
+    console.error('Error writing currency to localStorage', e);
+  }
+};
+
+export const triggerSync = () => {
+  try {
+    localStorage.setItem('vt_sync_trigger', Date.now().toString());
+  } catch (e) {
+    console.error('Error triggering sync', e);
+  }
+};
+
 export const timesheetService = {
   // --- EMPLOYEE TIMESHEET FUNCTIONS ---
   getActiveClockIn: async (userId) => {
@@ -23,24 +64,46 @@ export const timesheetService = {
       const todayStr = now.toISOString().split('T')[0];
       const timeStr = now.toTimeString().split(' ')[0];
 
-      const newLog = {
-        id: `log-${Date.now()}`,
-        userId: userId,
-        date: todayStr,
-        clockIn: timeStr,
-        clockOut: null,
-        hours: null,
-        notes: '',
-        location: locationString,
-        clientCompany: currentUser ? currentUser.clientCompany : 'N/A',
-        status: 'ACTIVE'
-      };
+      // Check if there is already an active shift
+      const active = logs.find((t) => t.userId === userId && t.clockOut === null);
+      if (active) {
+        throw new Error('Active shift already exists');
+      }
 
-      logs.push(newLog);
-      saveTimesheets(logs);
-      return { message: 'Clocked in successfully', log: newLog };
+      // Check if a daily record already exists for today
+      const existingIndex = logs.findIndex((t) => t.userId === userId && t.date === todayStr);
+
+      if (existingIndex !== -1) {
+        const log = logs[existingIndex];
+        log.clockIn = timeStr;
+        log.clockOut = null;
+        log.location = locationString;
+        log.status = 'ACTIVE';
+        saveTimesheets(logs);
+        triggerSync();
+        return { message: 'Clocked in successfully', log };
+      } else {
+        const newLog = {
+          id: `log-${Date.now()}`,
+          userId: userId,
+          date: todayStr,
+          clockIn: timeStr,
+          clockOut: null,
+          hours: 0,
+          notes: '',
+          location: locationString,
+          clientCompany: currentUser ? currentUser.clientCompany : 'N/A',
+          status: 'ACTIVE'
+        };
+
+        logs.push(newLog);
+        saveTimesheets(logs);
+        triggerSync();
+        return { message: 'Clocked in successfully', log: newLog };
+      }
     } else {
       const response = await api.post('/timesheets/clock-in', { location: locationString });
+      triggerSync();
       return response.data;
     }
   },
@@ -64,15 +127,18 @@ export const timesheetService = {
         const outTime = new Date(`${todayStr}T${timeStr}`);
         let diffHours = (outTime - inTime) / 3600000;
         if (diffHours < 0) diffHours = 0;
-        log.hours = parseFloat(diffHours.toFixed(2));
+        const currentHours = log.hours || 0;
+        log.hours = parseFloat((currentHours + diffHours).toFixed(2));
 
         logs[logIndex] = log;
         saveTimesheets(logs);
+        triggerSync();
         return { message: 'Clocked out successfully', log };
       }
       throw new Error('Active clock session not found');
     } else {
       const response = await api.post('/timesheets/clock-out', { notes });
+      triggerSync();
       return response.data;
     }
   },
@@ -94,26 +160,38 @@ export const timesheetService = {
     if (isMockMode()) {
       const logs = getTimesheets();
       const users = getUsers();
-      const employees = users.filter((u) => u.role === 'employee');
+      const employees = users.filter((u) => u.role === 'employee' || u.role === 'EMPLOYEE');
 
       const activeClockins = logs.filter((t) => t.clockOut === null).length;
-      const uniqueClients = [...new Set(employees.map((e) => e.clientCompany))].filter(Boolean);
+      
+      const storedCompanies = localStorage.getItem('vt_client_companies');
+      let clientCount = 5;
+      if (storedCompanies) {
+        try {
+          clientCount = JSON.parse(storedCompanies).length;
+        } catch (e) {
+          // ignore
+        }
+      }
 
       const todayStr = new Date().toISOString().split('T')[0];
-      const todaysHours = logs
-        .filter((t) => t.date === todayStr && t.clockOut !== null)
-        .reduce((sum, current) => sum + (current.hours || 0), 0);
+      const submittedToday = new Set(
+        logs
+          .filter((t) => t.date === todayStr && (t.clockOut !== null || (t.hours !== null && t.hours > 0)))
+          .map((t) => t.userId)
+      ).size;
 
       return {
         currentlyClockedIn: activeClockins,
         activeEmployees: activeClockins,
         totalEmployees: employees.length,
-        activeClients: uniqueClients.length,
-        totalClients: uniqueClients.length,
-        todaysHours: parseFloat(todaysHours.toFixed(2))
+        activeClients: clientCount,
+        totalClients: clientCount,
+        timesheetsSubmittedToday: submittedToday
       };
     } else {
       const response = await api.get('/admin/stats');
+      console.log(response.data);
       return response.data;
     }
   },
@@ -124,7 +202,7 @@ export const timesheetService = {
       let filtered = [...logs];
 
       if (filters.userId && filters.userId !== 'all') {
-        filtered = filtered.filter((t) => t.userId === filters.userId);
+        filtered = filtered.filter((t) => t.userId === filters.userId || String(t.userId) === String(filters.userId));
       }
       if (filters.client && filters.client !== 'all') {
         filtered = filtered.filter((t) => t.clientCompany === filters.client);
@@ -149,7 +227,7 @@ export const timesheetService = {
     if (isMockMode()) {
       const logs = getTimesheets();
       const users = getUsers();
-      const employee = users.find((u) => u.id === logEntry.userId);
+      const employee = users.find((u) => u.id === logEntry.userId || String(u.id) === String(logEntry.userId));
 
       let hours = null;
       if (logEntry.clockOut) {
@@ -160,24 +238,41 @@ export const timesheetService = {
         hours = parseFloat(diffHours.toFixed(2));
       }
 
-      const newLog = {
-        id: `log-${Date.now()}`,
-        userId: logEntry.userId,
-        date: logEntry.date,
-        clockIn: logEntry.clockIn,
-        clockOut: logEntry.clockOut,
-        hours: hours,
-        notes: logEntry.notes,
-        location: logEntry.location || 'Office (Manual)',
-        clientCompany: employee ? employee.clientCompany : 'N/A',
-        status: logEntry.clockOut ? 'COMPLETED' : 'ACTIVE'
-      };
+      const existingIndex = logs.findIndex((t) => t.userId === logEntry.userId && t.date === logEntry.date);
+      if (existingIndex !== -1) {
+        const existing = logs[existingIndex];
+        const newHours = (existing.hours || 0) + (hours || 0);
+        existing.hours = parseFloat(newHours.toFixed(2));
+        existing.clockIn = logEntry.clockIn;
+        existing.clockOut = logEntry.clockOut;
+        existing.notes = logEntry.notes;
+        existing.location = logEntry.location || 'Office (Manual)';
+        existing.status = logEntry.clockOut ? 'COMPLETED' : 'ACTIVE';
+        saveTimesheets(logs);
+        triggerSync();
+        return { message: 'Manual entry created', id: existing.id };
+      } else {
+        const newLog = {
+          id: `log-${Date.now()}`,
+          userId: logEntry.userId,
+          date: logEntry.date,
+          clockIn: logEntry.clockIn,
+          clockOut: logEntry.clockOut,
+          hours: hours,
+          notes: logEntry.notes,
+          location: logEntry.location || 'Office (Manual)',
+          clientCompany: logEntry.clientCompany || (employee ? employee.clientCompany : 'N/A'),
+          status: logEntry.clockOut ? 'COMPLETED' : 'ACTIVE'
+        };
 
-      logs.push(newLog);
-      saveTimesheets(logs);
-      return { message: 'Manual entry created', id: newLog.id };
+        logs.push(newLog);
+        saveTimesheets(logs);
+        triggerSync();
+        return { message: 'Manual entry created', id: newLog.id };
+      }
     } else {
       const response = await api.post('/admin/timesheets', logEntry);
+      triggerSync();
       return response.data;
     }
   },
@@ -203,11 +298,13 @@ export const timesheetService = {
           status: logEntry.clockOut ? 'COMPLETED' : 'ACTIVE'
         };
         saveTimesheets(logs);
+        triggerSync();
         return { message: 'Timesheet record updated' };
       }
       throw new Error('Timesheet entry not found');
     } else {
       const response = await api.put(`/admin/timesheets/${logId}`, logEntry);
+      triggerSync();
       return response.data;
     }
   },
@@ -217,9 +314,11 @@ export const timesheetService = {
       const logs = getTimesheets();
       const filtered = logs.filter((t) => t.id !== logId);
       saveTimesheets(filtered);
+      triggerSync();
       return { message: 'Timesheet record deleted' };
     } else {
       const response = await api.delete(`/admin/timesheets/${logId}`);
+      triggerSync();
       return response.data;
     }
   },
@@ -229,9 +328,11 @@ export const timesheetService = {
       const logs = getTimesheets();
       const filtered = logs.filter((t) => !logIds.includes(t.id));
       saveTimesheets(filtered);
+      triggerSync();
       return { message: 'Timesheet records deleted' };
     } else {
       const response = await api.post('/admin/timesheets/bulk-delete', { ids: logIds });
+      triggerSync();
       return response.data;
     }
   },
@@ -256,19 +357,52 @@ export const timesheetService = {
 
       users.push(newUser);
       saveUsers(users);
+
+      if (employeeData.currency) {
+        setCandidateCurrency(newUser.id, employeeData.currency);
+      }
+
+      triggerSync();
       return { message: 'User account created successfully', userId: newUser.id };
     } else {
-      const response = await api.post('/admin/users', employeeData);
-      return response.data;
+      console.log("Payload:", employeeData);
+      console.log("Endpoint:", "/admin/candidates");
+      const response = await api.post('/admin/candidates', employeeData);
+      const data = response.data;
+      if (employeeData.currency && data && data.id) {
+        setCandidateCurrency(data.id, employeeData.currency);
+      }
+      triggerSync();
+      return data;
     }
   },
 
   getEmployeesList: async () => {
     if (isMockMode()) {
       const users = getUsers();
-      return users.filter((u) => u.role === 'employee');
+      return users.filter((u) => u.role === 'employee' || u.role === 'EMPLOYEE');
     } else {
       const response = await api.get('/admin/employees');
+      return response.data;
+    }
+  },
+
+  deleteEmployee: async (userId) => {
+    if (isMockMode()) {
+      const users = getUsers();
+      const filteredUsers = users.filter((u) => u.id !== userId);
+      saveUsers(filteredUsers);
+
+      // Clean up mock timesheets for that user too
+      const logs = getTimesheets();
+      const filteredLogs = logs.filter((t) => t.userId !== userId);
+      saveTimesheets(filteredLogs);
+
+      triggerSync();
+      return { message: 'Candidate account removed' };
+    } else {
+      const response = await api.delete(`/admin/employees/${userId}`);
+      triggerSync();
       return response.data;
     }
   },
@@ -281,7 +415,7 @@ export const timesheetService = {
       let filtered = [...timesheets];
 
       if (filters.userId && filters.userId !== 'all') {
-        filtered = filtered.filter((t) => t.userId === filters.userId);
+        filtered = filtered.filter((t) => t.userId === filters.userId || String(t.userId) === String(filters.userId));
       }
       if (filters.client && filters.client !== 'all') {
         filtered = filtered.filter((t) => t.clientCompany === filters.client);
@@ -293,20 +427,20 @@ export const timesheetService = {
         filtered = filtered.filter((t) => t.date <= filters.endDate);
       }
 
-      let csv = 'Candidate Name,Client Company,Hourly Rate ($),Date,Clock In,Clock Out,Total Hours,Location Captured,Work Notes\n';
+      let csv = 'Candidate Name,Client Company,Hourly Rate,Currency,Date,Clock In,Clock Out,Total Hours,Location Captured,Work Notes\n';
       filtered.forEach((log) => {
-        const user = users.find((u) => u.id === log.userId) || { name: 'Unknown', rate: 0 };
+        const user = users.find((u) => u.id === log.userId || String(u.id) === String(log.userId)) || { name: 'Unknown', rate: 0 };
         const cleanNotes = log.notes ? `"${log.notes.replace(/"/g, '""')}"` : '""';
         const cleanLocation = log.location ? `"${log.location.replace(/"/g, '""')}"` : '""';
         const hoursStr = log.clockOut ? log.hours : 'Active Clock';
         const clockOutTime = log.clockOut || 'N/A';
-        csv += `"${user.name}","${log.clientCompany || 'N/A'}",${user.rate},"${log.date}","${log.clockIn}","${clockOutTime}",${hoursStr},${cleanLocation},${cleanNotes}\n`;
+        const currency = getCandidateCurrency(user.id || log.userId);
+        csv += `"${user.name}","${log.clientCompany || 'N/A'}",${user.rate || 0},"${currency}","${log.date}","${log.clockIn}","${clockOutTime}",${hoursStr},${cleanLocation},${cleanNotes}\n`;
       });
 
       triggerFileDownload(csv, `Vergil_Tempo_Timesheets_${new Date().toISOString().slice(0, 10)}.csv`);
       return true;
     } else {
-      // Stream server-side CSV response
       const response = await api.get('/reports/export-master', { params: filters, responseType: 'blob' });
       triggerBlobDownload(response.data, `Vergil_Tempo_Timesheets_${new Date().toISOString().slice(0, 10)}.csv`);
       return true;
@@ -317,11 +451,11 @@ export const timesheetService = {
     if (isMockMode()) {
       const timesheets = getTimesheets();
       const users = getUsers();
-      const candidate = users.find((u) => u.id === userId);
+      const candidate = users.find((u) => u.id === userId || String(u.id) === String(userId));
       if (!candidate) throw new Error('Candidate not found');
 
       const monthlyLogs = timesheets
-        .filter((t) => t.userId === userId && t.date.startsWith(yearMonth) && t.clockOut !== null)
+        .filter((t) => (t.userId === userId || String(t.userId) === String(userId)) && t.date.startsWith(yearMonth) && t.clockOut !== null)
         .sort((a, b) => new Date(a.date) - new Date(b.date));
 
       if (monthlyLogs.length === 0) {
@@ -330,6 +464,8 @@ export const timesheetService = {
 
       const totalHours = monthlyLogs.reduce((sum, log) => sum + log.hours, 0);
       const totalBillable = totalHours * (candidate.rate || 0);
+      const currencySymbol = getCurrencySymbol(userId);
+      const currency = getCandidateCurrency(userId);
 
       const parts = yearMonth.split('-');
       const labelDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, 1);
@@ -339,7 +475,7 @@ export const timesheetService = {
       csv += `Candidate Name,"${candidate.name}"\n`;
       csv += `Billing Month,"${monthLabel}"\n`;
       csv += `Placed Client Company,"${candidate.clientCompany || 'N/A'}"\n`;
-      csv += `Payroll Hourly Rate,$${(candidate.rate || 0).toFixed(2)}\n\n`;
+      csv += `Payroll Hourly Rate,${currencySymbol}${(candidate.rate || 0).toFixed(2)} (${currency})\n\n`;
       csv += `Date,Clock In,Clock Out,Total Hours,Location Captured,Work Notes\n`;
 
       monthlyLogs.forEach((log) => {
@@ -350,12 +486,11 @@ export const timesheetService = {
 
       csv += `\n`;
       csv += `TOTAL BILLABLE HOURS,,,${totalHours.toFixed(2)}\n`;
-      csv += `TOTAL BILLABLE AMOUNT,,, "$${totalBillable.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}"\n`;
+      csv += `TOTAL BILLABLE AMOUNT,,, "${currencySymbol}${totalBillable.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}"\n`;
 
       triggerFileDownload(csv, `Vergil_Tempo_${candidate.name.replace(/\s+/g, '_')}_${yearMonth}.csv`);
       return true;
     } else {
-      // Call server endpoint streaming PDF or Excel (using OpenPDF / Apache POI)
       const response = await api.get('/reports/export-monthly', {
         params: { userId, month: yearMonth },
         responseType: 'blob'

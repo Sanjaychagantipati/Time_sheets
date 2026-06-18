@@ -148,14 +148,17 @@ export default function ClockCard({ onShiftLogged, setToast }) {
   };
 
   return (
-    <div className="card glass hero-gradient p-10 flex flex-col items-center justify-center rounded-2xl relative overflow-hidden text-center bg-[#121826]/60 border border-white/5 shadow-xl">
+    <div className="bg-[#111111] border border-[#2A2A2A] p-10 flex flex-col items-center justify-center rounded-2xl relative overflow-hidden text-center shadow-2xl">
+      {/* Background glow lines */}
+      <div className="absolute top-0 left-0 w-full h-[3px] bg-[#FF7A00]"></div>
+      
       <div className="relative z-10 mb-4">
-        <div className="text-5xl font-extrabold tracking-tight text-white font-mono">{timeStr}</div>
-        <div className="text-sm text-gray-400 font-medium mt-2">{dateStr}</div>
+        <div className="text-5xl font-extrabold tracking-tight text-[#FF7A00] font-mono">{timeStr}</div>
+        <div className="text-sm text-[#B3B3B3] font-medium mt-2">{dateStr}</div>
       </div>
 
-      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 mb-8 relative z-10">
-        <span className={`w-2 h-2 rounded-full ${isClockedIn ? 'bg-emerald-500 animate-pulse shadow-[0_0_10px_#10b981]' : 'bg-gray-500'}`}></span>
+      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-black/40 border border-[#2A2A2A] mb-8 relative z-10">
+        <span className={`w-2.5 h-2.5 rounded-full ${isClockedIn ? 'bg-[#FF7A00] animate-pulse shadow-[0_0_10px_#FF7A00]' : 'bg-gray-600'}`}></span>
         <span className="text-[10px] font-bold text-white uppercase tracking-wider">
           {isClockedIn ? 'Clocked In' : 'Clocked Out'}
         </span>
@@ -164,21 +167,21 @@ export default function ClockCard({ onShiftLogged, setToast }) {
       <div className="w-full max-w-md relative z-10">
         {isClockedIn && (
           <div className="mb-5 flex flex-col gap-2">
-            <label htmlFor="shift-notes" className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-              What are you working on? (Optional)
+            <label htmlFor="shift-notes" className="text-left text-[10px] font-bold text-[#B3B3B3] uppercase tracking-wider">
+              What are you working on today?
             </label>
             <textarea
               id="shift-notes"
               name="notes"
-              className="bg-[#1a2336] border border-white/5 text-white rounded-lg p-3 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 resize-none"
+              className="bg-[#1A1A1A] border border-[#2A2A2A] text-white rounded-xl p-3.5 text-sm focus:outline-none focus:border-[#FF7A00] focus:ring-1 focus:ring-[#FF7A00] transition resize-none w-full"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Enter task summary, notes, or milestones..."
+              placeholder="What are you working on today?"
               rows={2}
               maxLength={250}
             />
             {locationStr && (
-              <div className="flex items-center justify-center gap-1.5 p-2 rounded bg-sky-500/5 border border-sky-500/10 text-sky-400 text-xs mt-2">
+              <div className="flex items-center justify-center gap-1.5 p-2 rounded-xl bg-orange-500/5 border border-orange-500/10 text-[#FF7A00] text-xs mt-2">
                 <MapPin size={12} />
                 <span className="truncate max-w-[340px]" title={locationStr}>
                   {locationStr}
@@ -191,14 +194,20 @@ export default function ClockCard({ onShiftLogged, setToast }) {
         <button
           onClick={isClockedIn ? handleClockOut : handleClockIn}
           disabled={detecting || submitting}
-          className={`w-full py-4 text-base font-bold rounded-xl flex items-center justify-center gap-2 transition duration-200 ${
+          className={`w-full py-4 text-base font-bold rounded-xl flex items-center justify-center gap-2 transition duration-300 cursor-pointer disabled:cursor-not-allowed ${
             isClockedIn
-              ? 'bg-rose-500 hover:bg-rose-600 text-white shadow-rose-500/20 shadow-lg'
-              : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/20 shadow-lg'
+              ? 'bg-[#2A2A2A] hover:bg-[#333333] text-white border border-[#3A3A3A] hover:shadow-[0_0_15px_rgba(255,122,0,0.1)]'
+              : 'bg-[#FF7A00] hover:bg-[#FF8C1A] text-white hover:shadow-[0_0_15px_rgba(255,122,0,0.35)] shadow-lg shadow-[#FF7A00]/10'
           }`}
         >
           {isClockedIn ? <Square size={16} /> : <Play size={16} />}
-          <span>{detecting ? 'Detecting Location...' : submitting ? 'Processing...' : isClockedIn ? 'Clock Out' : 'Clock In'}</span>
+          <span>
+            {detecting 
+              ? 'Detecting Location...' 
+              : submitting 
+                ? (isClockedIn ? 'Clocking Out...' : 'Clocking In...') 
+                : (isClockedIn ? 'Clock Out' : 'Clock In')}
+          </span>
         </button>
       </div>
     </div>

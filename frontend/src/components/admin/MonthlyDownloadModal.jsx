@@ -4,7 +4,7 @@ import { timesheetService } from '../../services/timesheetService';
 
 export default function MonthlyDownloadModal({ isOpen, onClose, setToast }) {
   const [employees, setEmployees] = useState([]);
-  const [userId, setUserId] = useState('');
+  const [candidateName, setCandidateName] = useState('');
   const [yearMonth, setYearMonth] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -15,7 +15,7 @@ export default function MonthlyDownloadModal({ isOpen, onClose, setToast }) {
         const list = await timesheetService.getEmployeesList();
         setEmployees(list);
         if (list.length > 0) {
-          setUserId(list[0].id);
+          setCandidateName(list[0].name);
         }
       } catch (err) {
         console.error(err);
@@ -34,8 +34,20 @@ export default function MonthlyDownloadModal({ isOpen, onClose, setToast }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
+    
+    const trimmedName = candidateName.trim();
+    const matched = employees.find(
+      (emp) => emp.name.toLowerCase() === trimmedName.toLowerCase() || emp.username.toLowerCase() === trimmedName.toLowerCase()
+    );
+
+    if (!matched) {
+      setToast({ message: 'Candidate not found. Please select or type an existing candidate name.', type: 'error' });
+      setSubmitting(false);
+      return;
+    }
+
     try {
-      await timesheetService.exportMonthlyBillingReport(userId, yearMonth);
+      await timesheetService.exportMonthlyBillingReport(matched.id, yearMonth);
       setToast({ message: 'Monthly billing report generated successfully.', type: 'success' });
       onClose();
     } catch (err) {
@@ -55,10 +67,10 @@ export default function MonthlyDownloadModal({ isOpen, onClose, setToast }) {
       <div className="relative z-10 w-full max-w-md glass bg-[#121826]/90 border border-white/5 rounded-2xl overflow-hidden shadow-2xl animate-scale-in">
         <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between">
           <h3 className="text-base font-bold flex items-center gap-2">
-            <FileDown size={16} className="text-indigo-400" />
+            <FileDown size={16} className="text-[#FF7A00]" />
             <span>Monthly Candidate Downloader</span>
           </h3>
-          <button onClick={onClose} className="p-1 text-gray-400 hover:text-white rounded transition" aria-label="Close modal">
+          <button onClick={onClose} className="p-1 text-gray-400 hover:text-white rounded transition cursor-pointer" aria-label="Close modal">
             <X size={16} />
           </button>
         </div>
@@ -67,21 +79,22 @@ export default function MonthlyDownloadModal({ isOpen, onClose, setToast }) {
           <div className="p-6 flex flex-col gap-4">
             
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="download-monthly-candidate" className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Select Candidate</label>
-              <select
-                id="download-monthly-candidate"
-                name="userId"
+              <label htmlFor="download-monthly-candidate-input" className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Select Candidate</label>
+              <input
+                id="download-monthly-candidate-input"
+                name="candidateName"
+                list="download-monthly-employees"
                 required
-                value={userId}
-                onChange={(e) => setUserId(e.target.value)}
-                className="bg-[#1a2336] border border-white/5 text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 transition"
-              >
+                value={candidateName}
+                onChange={(e) => setCandidateName(e.target.value)}
+                placeholder="Type or select candidate..."
+                className="w-full h-14 bg-[#1A1A1A] border border-[#2A2A2A] text-white rounded-xl px-4 text-sm focus:outline-none focus:border-[#FF7A00] focus:ring-1 focus:ring-[#FF7A00] transition"
+              />
+              <datalist id="download-monthly-employees">
                 {employees.map((emp) => (
-                  <option key={emp.id} value={emp.id}>
-                    {emp.name}
-                  </option>
+                  <option key={emp.id} value={emp.name} />
                 ))}
-              </select>
+              </datalist>
             </div>
 
             <div className="flex flex-col gap-1.5">
@@ -93,24 +106,24 @@ export default function MonthlyDownloadModal({ isOpen, onClose, setToast }) {
                 required
                 value={yearMonth}
                 onChange={(e) => setYearMonth(e.target.value)}
-                className="bg-[#1a2336] border border-white/5 text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 transition"
+                className="bg-[#1A1A1A] border border-[#2A2A2A] text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#FF7A00] focus:ring-1 focus:ring-[#FF7A00] transition"
               />
             </div>
 
           </div>
 
-          <div className="px-6 py-4 border-t border-white/5 flex justify-end gap-3">
+          <div className="px-6 py-4 border-t border-white/5 flex justify-end gap-3 bg-black/10">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border border-white/10 hover:border-gray-500 text-gray-300 hover:text-white rounded-xl text-sm font-semibold transition"
+              className="px-4 py-2 border border-white/10 hover:border-gray-500 text-gray-300 hover:text-white rounded-xl text-sm font-semibold transition cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 disabled:bg-indigo-500/50 text-white rounded-xl text-sm font-semibold shadow-lg shadow-indigo-500/20 transition"
+              className="px-4 py-2 bg-[#FF7A00] hover:bg-[#FF8C1A] disabled:bg-[#FF7A00]/50 text-white rounded-xl text-sm font-semibold shadow-lg shadow-[#FF7A00]/20 transition cursor-pointer"
             >
               {submitting ? 'Generating...' : 'Generate & Download CSV'}
             </button>

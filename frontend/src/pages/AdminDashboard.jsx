@@ -17,26 +17,14 @@ import {
   Edit3,
   Trash2,
   MapPin,
-  ClipboardX,
-  Clock
+  ClipboardX
 } from 'lucide-react';
 import { formatDateFriendly, formatTime12h } from '../utils/formatters';
-
-// ChartJS setup
-import { Bar } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Tooltip,
-  Legend
-} from 'chart.js';
-
-ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
+import { useClientCompanies } from '../context/ClientCompanyContext';
+import CreateCompanyModal from '../components/admin/CreateCompanyModal';
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState({ active: 0, employees: 0, clients: 0, todaysHours: 0 });
+  const [stats, setStats] = useState({ active: 0, employees: 0, clients: 0, timesheetsSubmittedToday: 0 });
   const [logs, setLogs] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -48,24 +36,21 @@ export default function AdminDashboard() {
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
 
+  const { companies } = useClientCompanies();
+
   // Modals status
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDownloadOpen, setIsDownloadOpen] = useState(false);
+  const [isCompanyOpen, setIsCompanyOpen] = useState(false);
   const [selectedLogId, setSelectedLogId] = useState(null);
 
   // Bulk Selection State
   const [selectedTimesheets, setSelectedTimesheets] = useState([]);
 
-  // Chart data
-  const [chartData, setChartData] = useState({
-    labels: ['Microsoft', 'Google', 'Meta', 'Amazon', 'Netflix'],
-    datasets: [{ data: [0, 0, 0, 0, 0] }]
-  });
-
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (isSilent = false) => {
     try {
-      setLoading(true);
+      if (!isSilent) setLoading(true);
 
       // Fetch dashboard metadata
       const summary = await timesheetService.getAdminStats();
@@ -73,7 +58,7 @@ export default function AdminDashboard() {
         active: summary.currentlyClockedIn,
         employees: summary.totalEmployees,
         clients: summary.activeClients,
-        todaysHours: summary.todaysHours || 0
+        timesheetsSubmittedToday: summary.timesheetsSubmittedToday || 0
       });
 
       // Fetch placed candidates
@@ -91,55 +76,45 @@ export default function AdminDashboard() {
       setLogs(timesheets);
       setSelectedTimesheets((prev) => prev.filter((id) => timesheets.some((t) => t.id === id)));
 
-      // Calculate Client Weekly Billed Hours
-      const clientHours = { Microsoft: 0, Google: 0, Meta: 0, Amazon: 0, Netflix: 0 };
-      const startOfWeek = new Date();
-      startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
-      startOfWeek.setHours(0, 0, 0, 0);
-
-      timesheets.forEach((log) => {
-        if (log.clockOut !== null && new Date(log.date) >= startOfWeek) {
-          const client = log.clientCompany || 'Microsoft';
-          if (clientHours[client] !== undefined) {
-            clientHours[client] += log.hours || 0;
-          }
-        }
-      });
-
-      setChartData({
-        labels: Object.keys(clientHours),
-        datasets: [{
-          label: 'Hours Billed (This Week)',
-          data: Object.values(clientHours),
-          backgroundColor: [
-            'rgba(99, 102, 241, 0.75)',  // Indigo
-            'rgba(16, 185, 129, 0.75)',  // Emerald
-            'rgba(139, 92, 246, 0.75)',  // Purple
-            'rgba(245, 158, 11, 0.75)',  // Amber
-            'rgba(14, 165, 233, 0.75)'   // Sky
-          ],
-          borderColor: [
-            '#6366f1',
-            '#10b981',
-            '#8b5cf6',
-            '#f59e0b',
-            '#0ea5e9'
-          ],
-          borderWidth: 1.5,
-          borderRadius: 6
-        }]
-      });
+      // No chart updates needed
 
     } catch (err) {
       console.error(err);
       setToast({ message: 'Error retrieving system records.', type: 'error' });
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   }, [filterEmployee, filterClient, filterStartDate, filterEndDate]);
 
+  const refreshEmployees = useCallback(async () => {
+    try {
+      const list = await timesheetService.getEmployeesList();
+      setEmployees(list);
+    } catch (err) {
+      console.error(err);
+      setToast({ message: 'Failed to refresh candidate list.', type: 'error' });
+    }
+  }, []);
+
   useEffect(() => {
     loadData();
+  }, [loadData]);
+
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'vt_timesheets' || e.key === 'vt_users' || e.key === 'vt_sync_trigger') {
+        loadData(true);
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [loadData]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadData(true);
+    }, 5000);
+    return () => clearInterval(interval);
   }, [loadData]);
 
   const handleClearFilters = () => {
@@ -177,6 +152,19 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleDeleteEmployee = async (userId, name) => {
+    if (confirm('Delete this employee account?')) {
+      try {
+        await timesheetService.deleteEmployee(userId);
+        setToast({ message: `Candidate account for ${name} removed`, type: 'success' });
+        loadData();
+      } catch (err) {
+        console.error(err);
+        setToast({ message: 'Failed to delete employee.', type: 'error' });
+      }
+    }
+  };
+
   const handleEditClick = (logId) => {
     setSelectedLogId(logId);
     setIsEditOpen(true);
@@ -205,7 +193,7 @@ export default function AdminDashboard() {
   const handleBulkDelete = async () => {
     if (selectedTimesheets.length === 0) return;
     const count = selectedTimesheets.length;
-    if (confirm(`Are you sure you want to permanently delete the ${count} selected timesheet entries?`)) {
+    if (confirm(`Delete ${count} selected timesheets?`)) {
       try {
         await timesheetService.deleteLogs(selectedTimesheets);
         setToast({ message: `${count} timesheet records deleted`, type: 'success' });
@@ -217,47 +205,22 @@ export default function AdminDashboard() {
     }
   };
 
-  // Chart styling options
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: { display: false },
-      tooltip: {
-        padding: 12,
-        backgroundColor: 'rgba(15, 23, 42, 0.95)',
-        borderColor: 'rgba(255,255,255,0.08)',
-        borderWidth: 1,
-        titleFont: { family: 'Outfit', size: 14, weight: 'bold' },
-        bodyFont: { family: 'Outfit', size: 13 }
-      }
-    },
-    scales: {
-      y: {
-        beginAtZero: true,
-        grid: { color: 'rgba(255, 255, 255, 0.05)' },
-        ticks: { color: '#9ca3af', font: { family: 'Outfit', size: 11 } }
-      },
-      x: {
-        grid: { display: false },
-        ticks: { color: '#9ca3af', font: { family: 'Outfit', size: 12, weight: 'bold' } }
-      }
-    }
-  };
+  // Extract unique client company list for filter from context only
+  const uniqueClients = [...companies].sort();
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in text-white">
       {/* 1. Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         
         {/* Total Employees */}
-        <div className="card glass p-6 bg-[#121826]/40 border border-white/5 rounded-xl flex items-center gap-5">
-          <div className="w-12 h-12 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center">
+        <div className="bg-[#111111] border border-[#2A2A2A] p-6 rounded-xl flex items-center gap-5 hover:scale-[1.02] hover:border-[#FF7A00]/40 transition duration-300 shadow-lg">
+          <div className="w-12 h-12 rounded-xl bg-orange-500/10 text-[#FF7A00] flex items-center justify-center">
             <UserCheck size={22} />
           </div>
           <div className="flex flex-col">
-            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Total Employees</span>
-            <span className="text-2xl font-bold text-white mt-1">{stats.employees}</span>
+            <span className="text-xs font-semibold text-[#B3B3B3] uppercase tracking-wider">Total Employees</span>
+            <span className="text-2xl font-bold text-white mt-1">{employees.length}</span>
           </div>
         </div>
 
@@ -267,115 +230,107 @@ export default function AdminDashboard() {
             handleClearFilters();
             setToast({ message: 'Showing all logs for currently active shifts.', type: 'info' });
           }}
-          className="card glass p-6 bg-[#121826]/40 border border-white/5 rounded-xl flex items-center gap-5 hover:border-indigo-500/50 cursor-pointer transition"
+          className="bg-[#111111] border border-[#2A2A2A] p-6 rounded-xl flex items-center gap-5 hover:scale-[1.02] hover:border-[#FF7A00] cursor-pointer transition duration-300 shadow-lg"
         >
-          <div className="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-xl bg-orange-500/10 text-[#FF7A00] flex items-center justify-center">
             <Users size={22} />
           </div>
           <div className="flex flex-col">
-            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Active Employees</span>
+            <span className="text-xs font-semibold text-[#B3B3B3] uppercase tracking-wider">Active Employees</span>
             <span className="text-2xl font-bold text-white mt-1">{stats.active}</span>
           </div>
         </div>
 
         {/* Total Clients */}
-        <div className="card glass p-6 bg-[#121826]/40 border border-white/5 rounded-xl flex items-center gap-5">
-          <div className="w-12 h-12 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center">
+        <div className="bg-[#111111] border border-[#2A2A2A] p-6 rounded-xl flex items-center gap-5 hover:scale-[1.02] hover:border-[#FF7A00]/40 transition duration-300 shadow-lg">
+          <div className="w-12 h-12 rounded-xl bg-orange-500/10 text-[#FF7A00] flex items-center justify-center">
             <Briefcase size={22} />
           </div>
           <div className="flex flex-col">
-            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Total Clients</span>
-            <span className="text-2xl font-bold text-white mt-1">{stats.clients}</span>
+            <span className="text-xs font-semibold text-[#B3B3B3] uppercase tracking-wider">Total Clients</span>
+            <span className="text-2xl font-bold text-white mt-1">{companies.length}</span>
           </div>
         </div>
 
-        {/* Today's Hours */}
-        <div className="card glass p-6 bg-[#121826]/40 border border-white/5 rounded-xl flex items-center gap-5">
-          <div className="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center">
-            <Clock size={22} />
+        {/* Timesheets Submitted Today */}
+        <div className="bg-[#111111] border border-[#2A2A2A] p-6 rounded-xl flex items-center gap-5 hover:scale-[1.02] hover:border-[#FF7A00]/40 transition duration-300 shadow-lg">
+          <div className="w-12 h-12 rounded-xl bg-orange-500/10 text-[#FF7A00] flex items-center justify-center">
+            <FileSpreadsheet size={22} />
           </div>
           <div className="flex flex-col">
-            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Today's Hours</span>
-            <span className="text-2xl font-bold text-white mt-1">{stats.todaysHours.toFixed(2)}</span>
+            <span className="text-xs font-semibold text-[#B3B3B3] uppercase tracking-wider">Timesheets Submitted Today</span>
+            <span className="text-2xl font-bold text-white mt-1">{stats.timesheetsSubmittedToday}</span>
           </div>
         </div>
 
       </div>
 
-      {/* 2. Top Grid: Chart + Quick Actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
-        
-        {/* Weekly Chart */}
-        <div className="lg:col-span-2 card glass p-6 bg-[#121826]/60 border border-white/5 rounded-2xl flex flex-col justify-between min-h-[340px]">
-          <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider mb-4">Hours Billed by Client Company</h3>
-          <div className="h-64 relative">
-            <Bar data={chartData} options={chartOptions} />
-          </div>
+      {/* 2. Quick Admin Actions Grid */}
+      <div className="bg-[#111111] border border-[#2A2A2A] p-6 rounded-2xl shadow-2xl">
+        <h3 className="text-sm font-bold text-[#B3B3B3] uppercase tracking-wider mb-4">Quick Admin Actions</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+          
+          <button 
+            onClick={() => setIsCreateOpen(true)}
+            className="h-24 p-4 rounded-xl border border-[#2A2A2A] hover:border-[#FF7A00] bg-[#1A1A1A] hover:bg-[#1A1A1A]/80 flex flex-col items-center justify-center gap-2 text-center transition cursor-pointer"
+          >
+            <UserPlus size={20} className="text-[#FF7A00]" />
+            <span className="text-xs font-semibold text-white">Create Candidate</span>
+          </button>
+
+          <button 
+            onClick={handleAddManualClick}
+            className="h-24 p-4 rounded-xl border border-[#2A2A2A] hover:border-[#FF7A00] bg-[#1A1A1A] hover:bg-[#1A1A1A]/80 flex flex-col items-center justify-center gap-2 text-center transition cursor-pointer"
+          >
+            <CalendarPlus size={20} className="text-[#FF7A00]" />
+            <span className="text-xs font-semibold text-white">Add Manual Entry</span>
+          </button>
+
+          <button 
+            onClick={() => setIsCompanyOpen(true)}
+            className="h-24 p-4 rounded-xl border border-[#2A2A2A] hover:border-[#FF7A00] bg-[#1A1A1A] hover:bg-[#1A1A1A]/80 flex flex-col items-center justify-center gap-2 text-center transition cursor-pointer"
+          >
+            <Briefcase size={20} className="text-[#FF7A00]" />
+            <span className="text-xs font-semibold text-white">Create Client Company</span>
+          </button>
+
+          <button 
+            onClick={handleExportMaster}
+            className="h-24 p-4 rounded-xl border border-[#2A2A2A] hover:border-[#FF7A00] bg-[#1A1A1A] hover:bg-[#1A1A1A]/80 flex flex-col items-center justify-center gap-2 text-center transition cursor-pointer"
+          >
+            <Download size={20} className="text-[#FF7A00]" />
+            <span className="text-xs font-semibold text-white">Export Master CSV</span>
+          </button>
+
+          <button 
+            onClick={() => setIsDownloadOpen(true)}
+            className="h-24 p-4 rounded-xl border border-[#2A2A2A] hover:border-[#FF7A00] bg-[#1A1A1A] hover:bg-[#1A1A1A]/80 flex flex-col items-center justify-center gap-2 text-center transition cursor-pointer"
+          >
+            <FileDown size={20} className="text-[#FF7A00]" />
+            <span className="text-xs font-semibold text-white">Monthly Export</span>
+          </button>
+
         </div>
-
-        {/* Quick Actions Panel */}
-        <div className="card glass p-6 bg-[#121826]/60 border border-white/5 rounded-2xl flex flex-col justify-between">
-          <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider mb-4">Quick Admin Actions</h3>
-          <div className="grid grid-cols-2 gap-4 flex-grow items-center">
-            
-            <button 
-              onClick={() => setIsCreateOpen(true)}
-              className="h-24 p-4 rounded-xl border border-white/5 hover:border-indigo-500/50 bg-[#1a2336]/40 hover:bg-[#1a2336]/70 flex flex-col items-center justify-center gap-2 text-center transition"
-            >
-              <UserPlus size={20} className="text-indigo-400" />
-              <span className="text-xs font-semibold">Create Candidate</span>
-            </button>
-
-            <button 
-              onClick={handleAddManualClick}
-              className="h-24 p-4 rounded-xl border border-white/5 hover:border-indigo-500/50 bg-[#1a2336]/40 hover:bg-[#1a2336]/70 flex flex-col items-center justify-center gap-2 text-center transition"
-            >
-              <CalendarPlus size={20} className="text-amber-400" />
-              <span className="text-xs font-semibold">Add Manual Entry</span>
-            </button>
-
-            <button 
-              onClick={handleExportMaster}
-              className="h-24 p-4 rounded-xl border border-white/5 hover:border-indigo-500/50 bg-[#1a2336]/40 hover:bg-[#1a2336]/70 flex flex-col items-center justify-center gap-2 text-center transition"
-            >
-              <Download size={20} className="text-emerald-400" />
-              <span className="text-xs font-semibold">Export Master CSV</span>
-            </button>
-
-            <button 
-              onClick={() => setIsDownloadOpen(true)}
-              className="h-24 p-4 rounded-xl border border-white/5 hover:border-indigo-500/50 bg-[#1a2336]/40 hover:bg-[#1a2336]/70 flex flex-col items-center justify-center gap-2 text-center transition"
-            >
-              <FileDown size={20} className="text-purple-400" />
-              <span className="text-xs font-semibold">Monthly Export</span>
-            </button>
-
-          </div>
-        </div>
-
       </div>
 
       {/* 3. Filter control panel */}
-      <div className="card glass p-6 bg-[#121826]/60 border border-white/5 rounded-2xl">
+      <div className="bg-[#111111] border border-[#2A2A2A] p-6 rounded-2xl shadow-2xl">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-bold flex items-center gap-2 text-gray-300">
-            <SlidersHorizontal size={14} className="text-indigo-400" />
+          <h3 className="text-sm font-bold flex items-center gap-2 text-[#B3B3B3]">
+            <SlidersHorizontal size={14} className="text-[#FF7A00]" />
             <span>Filter & Search Records</span>
           </h3>
-          <button onClick={handleClearFilters} className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold hover:underline">
-            Clear Filters
-          </button>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="filter-candidate" className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Candidate</label>
+            <label htmlFor="filter-candidate" className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Candidate</label>
             <select
               id="filter-candidate"
               name="filterEmployee"
               value={filterEmployee}
               onChange={(e) => setFilterEmployee(e.target.value)}
-              className="bg-[#1a2336] border border-white/5 text-white rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 transition"
+              className="bg-[#1A1A1A] border border-[#2A2A2A] text-white rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-[#FF7A00] focus:ring-1 focus:ring-[#FF7A00] transition"
             >
               <option value="all">All Candidates</option>
               {employees.map((emp) => (
@@ -387,60 +342,72 @@ export default function AdminDashboard() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="filter-client" className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Client Company</label>
+            <label htmlFor="filter-client" className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Client Company</label>
             <select
               id="filter-client"
               name="filterClient"
               value={filterClient}
               onChange={(e) => setFilterClient(e.target.value)}
-              className="bg-[#1a2336] border border-white/5 text-white rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 transition"
+              className="bg-[#1A1A1A] border border-[#2A2A2A] text-white rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-[#FF7A00] focus:ring-1 focus:ring-[#FF7A00] transition"
             >
               <option value="all">All Client MNCs</option>
-              <option value="Microsoft">Microsoft</option>
-              <option value="Google">Google</option>
-              <option value="Meta">Meta</option>
-              <option value="Amazon">Amazon</option>
-              <option value="Netflix">Netflix</option>
+              {uniqueClients.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
             </select>
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="filter-start-date" className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Start Date</label>
+            <label htmlFor="filter-start-date" className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Start Date</label>
             <input
               id="filter-start-date"
               name="filterStartDate"
               type="date"
               value={filterStartDate}
               onChange={(e) => setFilterStartDate(e.target.value)}
-              className="bg-[#1a2336] border border-white/5 text-white rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 transition"
+              className="bg-[#1A1A1A] border border-[#2A2A2A] text-white rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-[#FF7A00] focus:ring-1 focus:ring-[#FF7A00] transition"
             />
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="filter-end-date" className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">End Date</label>
+            <label htmlFor="filter-end-date" className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">End Date</label>
             <input
               id="filter-end-date"
               name="filterEndDate"
               type="date"
               value={filterEndDate}
               onChange={(e) => setFilterEndDate(e.target.value)}
-              className="bg-[#1a2336] border border-white/5 text-white rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 transition"
+              className="bg-[#1A1A1A] border border-[#2A2A2A] text-white rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-[#FF7A00] focus:ring-1 focus:ring-[#FF7A00] transition"
             />
           </div>
 
         </div>
+        <div className="flex justify-end gap-3 mt-4">
+          <button
+            onClick={handleClearFilters}
+            className="px-4 py-2 bg-[#2A2A2A] hover:bg-[#333333] text-white border border-[#3A3A3A] rounded-xl text-xs font-bold transition duration-200 cursor-pointer"
+          >
+            Reset Filters
+          </button>
+          <button
+            onClick={loadData}
+            className="px-4 py-2 bg-[#FF7A00] hover:bg-[#FF8C1A] text-white rounded-xl text-xs font-bold transition duration-200 cursor-pointer shadow-md shadow-[#FF7A00]/10"
+          >
+            Apply Filters
+          </button>
+        </div>
       </div>
 
       {/* 4. Master Timesheet Listing Table */}
-      <div className="card glass bg-[#121826]/60 border border-white/5 rounded-2xl overflow-hidden shadow-xl">
-        <div className="px-6 py-5 border-b border-white/5 flex items-center justify-between">
+      <div className="bg-[#111111] border border-[#2A2A2A] rounded-2xl overflow-hidden shadow-2xl">
+        <div className="px-6 py-5 border-b border-[#2A2A2A] flex items-center justify-between bg-black/20">
           <h2 className="text-lg font-bold flex items-center gap-2">
-            <FileSpreadsheet size={18} className="text-indigo-400" />
+            <FileSpreadsheet size={18} className="text-[#FF7A00]" />
             <span>Master Timesheets</span>
           </h2>
           <div className="flex items-center gap-3">
             {selectedTimesheets.length > 0 && (
-              <span className="text-xs text-gray-400 font-semibold">
+              <span className="text-xs text-[#FF7A00] font-bold">
                 {selectedTimesheets.length} selected
               </span>
             )}
@@ -449,13 +416,13 @@ export default function AdminDashboard() {
               disabled={selectedTimesheets.length === 0}
               className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition duration-200 cursor-pointer disabled:cursor-not-allowed ${
                 selectedTimesheets.length === 0
-                  ? 'border-white/5 bg-[#1a2336]/20 text-gray-500'
-                  : 'border-rose-500/20 bg-rose-500/10 text-rose-400 hover:border-rose-500 hover:text-white hover:bg-rose-500 shadow-lg shadow-rose-500/10'
+                  ? 'border-white/5 bg-[#2A2A2A]/20 text-gray-500'
+                  : 'bg-[#FF7A00] hover:bg-[#FF8C1A] border-transparent text-white shadow-md shadow-[#FF7A00]/10'
               }`}
             >
               Delete Selected
             </button>
-            <span className="px-2.5 py-1 text-xs font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-full">
+            <span className="px-2.5 py-1 text-xs font-bold bg-orange-500/10 text-[#FF7A00] border border-orange-500/20 rounded-full">
               {logs.length} entries
             </span>
           </div>
@@ -463,25 +430,25 @@ export default function AdminDashboard() {
 
         {loading ? (
           <div className="py-12 flex flex-col items-center justify-center gap-3">
-            <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+            <div className="w-8 h-8 border-2 border-[#FF7A00] border-t-transparent rounded-full animate-spin"></div>
             <span className="text-xs text-gray-400">Loading master records...</span>
           </div>
         ) : logs.length === 0 ? (
-          <div className="py-16 flex flex-col items-center justify-center text-center text-gray-400 gap-4">
-            <ClipboardX size={48} className="text-gray-600 animate-pulse" />
+          <div className="py-16 flex flex-col items-center justify-center text-center text-[#B3B3B3] gap-4">
+            <ClipboardX size={48} className="text-gray-700 animate-pulse" />
             <p className="text-sm">No timesheet records match your filter criteria.</p>
           </div>
         ) : (
           <div className="overflow-x-auto w-full">
             <table className="w-full text-left border-collapse text-sm">
-              <thead>
-                <tr className="border-b border-white/5 bg-white/[0.02] text-gray-400 uppercase text-[10px] tracking-wider font-bold">
+              <thead className="sticky top-0 bg-[#111111] z-20">
+                <tr className="border-b border-[#2A2A2A] bg-black/40 text-[#B3B3B3] uppercase text-[10px] tracking-wider font-bold">
                   <th className="px-6 py-4 w-12">
                     <input
                       type="checkbox"
                       checked={logs.length > 0 && selectedTimesheets.length === logs.length}
                       onChange={toggleSelectAll}
-                      className="rounded border-white/10 bg-[#1a2336] text-indigo-500 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                      className="rounded border-[#2A2A2A] bg-[#1A1A1A] text-[#FF7A00] focus:ring-[#FF7A00] w-4 h-4 cursor-pointer"
                     />
                   </th>
                   <th className="px-6 py-4">Candidate</th>
@@ -496,17 +463,18 @@ export default function AdminDashboard() {
                   <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5 text-gray-300">
-                {logs.map((log) => {
+              <tbody className="divide-y divide-[#2A2A2A] text-[#B3B3B3]">
+                {logs.map((log, index) => {
                   const candidate = employees.find((u) => u.id === log.userId) || { name: 'Unknown Candidate' };
+                  const isSelected = selectedTimesheets.includes(log.id);
                   return (
-                    <tr key={log.id} className={`hover:bg-white/[0.02] transition duration-150 ${selectedTimesheets.includes(log.id) ? 'bg-white/[0.01]' : ''}`}>
+                    <tr key={log.id} className={`hover:bg-white/[0.02] transition duration-150 ${isSelected ? 'bg-white/[0.01]' : ''} ${index % 2 === 0 ? 'bg-black/10' : ''}`}>
                       <td className="px-6 py-4">
                         <input
                           type="checkbox"
-                          checked={selectedTimesheets.includes(log.id)}
+                          checked={isSelected}
                           onChange={() => toggleSelection(log.id)}
-                          className="rounded border-white/10 bg-[#1a2336] text-indigo-500 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                          className="rounded border-[#2A2A2A] bg-[#1A1A1A] text-[#FF7A00] focus:ring-[#FF7A00] w-4 h-4 cursor-pointer"
                         />
                       </td>
                       <td className="px-6 py-4">
@@ -514,14 +482,14 @@ export default function AdminDashboard() {
                           <span className="font-bold text-white">{candidate.name}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 font-semibold text-indigo-400">{log.clientCompany || 'N/A'}</td>
+                      <td className="px-6 py-4 font-semibold text-[#FF7A00]">{log.clientCompany || 'N/A'}</td>
                       <td className="px-6 py-4 font-semibold">{formatDateFriendly(log.date)}</td>
                       <td className="px-6 py-4">{formatTime12h(log.clockIn)}</td>
                       <td className="px-6 py-4">
                         {log.clockOut ? (
                           formatTime12h(log.clockOut)
                         ) : (
-                          <span className="text-indigo-400 animate-pulse font-semibold">Active...</span>
+                          <span className="text-[#FF7A00] animate-pulse font-semibold">Active...</span>
                         )}
                       </td>
                       <td className="px-6 py-4 font-bold text-white">
@@ -530,18 +498,18 @@ export default function AdminDashboard() {
                       <td className="px-6 py-4">
                         <span className={`px-2.5 py-1 text-[10px] font-extrabold rounded-full border ${
                           log.status === 'ACTIVE' 
-                            ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20 animate-pulse' 
-                            : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                            ? 'bg-transparent text-white border-white/40 animate-pulse' 
+                            : 'bg-orange-500/10 text-[#FF7A00] border-orange-500/20'
                         }`}>
                           {log.status === 'ACTIVE' ? 'Active' : 'Completed'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-xs text-gray-400 max-w-[200px] truncate" title={log.notes}>
+                      <td className="px-6 py-4 text-xs text-[#B3B3B3] max-w-[200px] truncate" title={log.notes}>
                         {log.notes || <span className="text-gray-600 italic">none</span>}
                       </td>
-                      <td className="px-6 py-4 text-xs text-gray-400 max-w-[180px] truncate" title={log.location}>
+                      <td className="px-6 py-4 text-xs text-[#B3B3B3] max-w-[180px] truncate" title={log.location}>
                         <div className="flex items-center gap-1">
-                          <MapPin size={11} className="text-sky-400 shrink-0" />
+                          <MapPin size={11} className="text-[#FF7A00] shrink-0" />
                           <span>{log.location ? log.location.split(' (')[0] : 'N/A'}</span>
                         </div>
                       </td>
@@ -549,7 +517,7 @@ export default function AdminDashboard() {
                         <div className="inline-flex gap-2">
                           <button
                             onClick={() => handleEditClick(log.id)}
-                            className="p-1.5 border border-white/10 hover:border-gray-500 text-gray-400 hover:text-white rounded-lg transition"
+                            className="p-1.5 border border-white/10 hover:border-[#FF7A00] text-gray-400 hover:text-white rounded-lg transition cursor-pointer"
                             title="Edit Log"
                             aria-label="Edit"
                           >
@@ -557,7 +525,7 @@ export default function AdminDashboard() {
                           </button>
                           <button
                             onClick={() => handleDeleteLog(log.id)}
-                            className="p-1.5 border border-rose-500/20 hover:border-rose-500 text-rose-400 hover:text-white hover:bg-rose-500/10 rounded-lg transition"
+                            className="p-1.5 border border-rose-500/20 hover:border-rose-500 text-rose-400 hover:text-white hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
                             title="Delete Log"
                             aria-label="Delete"
                           >
@@ -574,49 +542,64 @@ export default function AdminDashboard() {
         )}
       </div>
 
-      {/* 5. Staffing Candidates Directory (View Only) */}
-      <div className="card glass bg-[#121826]/60 border border-white/5 rounded-2xl overflow-hidden shadow-xl">
-        <div className="px-6 py-5 border-b border-white/5 flex items-center justify-between">
+      {/* 5. Staffing Candidates Directory */}
+      <div className="bg-[#111111] border border-[#2A2A2A] rounded-2xl overflow-hidden shadow-2xl">
+        <div className="px-6 py-5 border-b border-[#2A2A2A] flex items-center justify-between bg-black/20">
           <h2 className="text-lg font-bold flex items-center gap-2">
-            <Users size={18} className="text-indigo-400" />
-            <span>Staffing Candidates Directory (View Only)</span>
+            <Users size={18} className="text-[#FF7A00]" />
+            <span>Staffing Candidates Directory</span>
           </h2>
-          <span className="px-2.5 py-1 text-xs font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-full">
+          <span className="px-2.5 py-1 text-xs font-bold bg-orange-500/10 text-[#FF7A00] border border-orange-500/20 rounded-full">
             {employees.length} candidates
           </span>
         </div>
         <div className="overflow-x-auto w-full">
           <table className="w-full text-left border-collapse text-sm">
-            <thead>
-              <tr className="border-b border-white/5 bg-white/[0.02] text-gray-400 uppercase text-[10px] tracking-wider font-bold">
+            <thead className="sticky top-0 bg-[#111111] z-20">
+              <tr className="border-b border-[#2A2A2A] bg-black/40 text-[#B3B3B3] uppercase text-[10px] tracking-wider font-bold">
                 <th className="px-6 py-4">Name</th>
                 <th className="px-6 py-4">Username</th>
                 <th className="px-6 py-4">Role</th>
                 <th className="px-6 py-4">Client Company</th>
                 <th className="px-6 py-4">Status</th>
+                <th className="px-6 py-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5 text-gray-300">
-              {employees.map((emp) => {
+            <tbody className="divide-y divide-[#2A2A2A] text-[#B3B3B3]">
+              {employees.map((emp, index) => {
                 const isCurrentlyClockedIn = logs.some(log => log.userId === emp.id && log.clockOut === null);
                 return (
-                  <tr key={emp.id} className="hover:bg-white/[0.02] transition duration-150">
+                  <tr key={emp.id} className={`hover:bg-white/[0.02] transition duration-150 ${index % 2 === 0 ? 'bg-black/10' : ''}`}>
                     <td className="px-6 py-4 font-bold text-white">{emp.name}</td>
-                    <td className="px-6 py-4 font-mono text-xs text-gray-400">{emp.username}</td>
+                    <td className="px-6 py-4 font-mono text-xs text-[#B3B3B3]">{emp.username}</td>
                     <td className="px-6 py-4">
-                      <span className="px-2 py-0.5 text-[10px] font-bold bg-[#1a2336] text-indigo-300 rounded border border-white/5 uppercase">
+                      <span className={`px-2 py-0.5 text-[10px] font-bold rounded border uppercase ${
+                        emp.role.toLowerCase() === 'admin'
+                          ? 'bg-orange-500/10 text-[#FF7A00] border-orange-500/20'
+                          : 'bg-transparent text-white border-white/20'
+                      }`}>
                         {emp.role}
                       </span>
                     </td>
-                    <td className="px-6 py-4 font-semibold text-indigo-400">{emp.clientCompany || 'N/A'}</td>
+                    <td className="px-6 py-4 font-semibold text-[#FF7A00]">{emp.clientCompany || 'N/A'}</td>
                     <td className="px-6 py-4">
                       <span className={`px-2.5 py-1 text-[10px] font-extrabold rounded-full border ${
                         isCurrentlyClockedIn 
-                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 animate-pulse' 
-                          : 'bg-gray-500/10 text-gray-400 border-gray-500/20'
+                          ? 'bg-orange-500/10 text-[#FF7A00] border-orange-500/20 animate-pulse' 
+                          : 'bg-transparent text-gray-500 border border-[#2A2A2A]'
                       }`}>
                         {isCurrentlyClockedIn ? 'Clocked In' : 'Off Duty'}
                       </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button
+                        onClick={() => handleDeleteEmployee(emp.id, emp.name)}
+                        className="p-1.5 border border-rose-500/20 hover:border-rose-500 text-rose-400 hover:text-white hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
+                        title="Delete Employee"
+                        aria-label={`Delete ${emp.name}`}
+                      >
+                        <Trash2 size={13} />
+                      </button>
                     </td>
                   </tr>
                 );
@@ -630,8 +613,12 @@ export default function AdminDashboard() {
       <CreateEmployeeModal 
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
-        onSuccess={loadData}
+        onSuccess={refreshEmployees}
         setToast={setToast}
+        onCreateCompanyClick={() => {
+          setIsCreateOpen(false);
+          setIsCompanyOpen(true);
+        }}
       />
 
       <EditLogModal 
@@ -645,6 +632,13 @@ export default function AdminDashboard() {
       <MonthlyDownloadModal 
         isOpen={isDownloadOpen}
         onClose={() => setIsDownloadOpen(false)}
+        setToast={setToast}
+      />
+
+      <CreateCompanyModal 
+        isOpen={isCompanyOpen}
+        onClose={() => setIsCompanyOpen(false)}
+        employees={employees}
         setToast={setToast}
       />
 
