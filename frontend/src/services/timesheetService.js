@@ -1,5 +1,7 @@
 import api, { isMockMode } from './api';
 import { getTimesheets, saveTimesheets, getUsers, saveUsers } from './mockDb';
+// eslint-disable-next-line no-unused-vars
+import { API_URL } from '../config/api';
 
 export const getCandidateCurrency = (userId) => {
   try {
