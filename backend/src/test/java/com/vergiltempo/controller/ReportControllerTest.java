@@ -61,4 +61,26 @@ public class ReportControllerTest {
                 .andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.containsString("Vergil_Tempo_Billing_emp-123_2026-06.csv")))
                 .andExpect(content().string("monthlyHeader\nmonthlyValue\n"));
     }
+
+    @Test
+    public void testGetMonthlyAttendancePdf() throws Exception {
+        com.vergiltempo.dto.MonthlyAttendanceDTO mockDto = com.vergiltempo.dto.MonthlyAttendanceDTO.builder()
+                .companyName("Vergil Remnant Consultant Services Pvt Ltd")
+                .monthLabel("April 2026")
+                .employeeName("Sanjay")
+                .clientCompany("Microsoft")
+                .rows(java.util.Collections.emptyList())
+                .build();
+
+        org.mockito.Mockito.when(reportService.getMonthlyAttendanceData("emp-123", 4, 2026))
+                .thenReturn(mockDto);
+
+        mockMvc.perform(get("/api/reports/monthly-attendance")
+                .param("employeeId", "emp-123")
+                .param("month", "4")
+                .param("year", "2026"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType("application/pdf"))
+                .andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.containsString("Vergil_Tempo_Attendance_Sanjay_2026-04.pdf")));
+    }
 }

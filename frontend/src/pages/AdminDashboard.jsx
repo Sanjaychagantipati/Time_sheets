@@ -307,7 +307,7 @@ export default function AdminDashboard() {
             className="h-24 p-4 rounded-xl border border-[#2A2A2A] hover:border-[#FF7A00] bg-[#1A1A1A] hover:bg-[#1A1A1A]/80 flex flex-col items-center justify-center gap-2 text-center transition cursor-pointer"
           >
             <FileDown size={20} className="text-[#FF7A00]" />
-            <span className="text-xs font-semibold text-white">Monthly Export</span>
+            <span className="text-xs font-semibold text-white">Monthly Attendance Report</span>
           </button>
 
         </div>

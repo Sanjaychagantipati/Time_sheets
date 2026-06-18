@@ -47,12 +47,12 @@ export default function MonthlyDownloadModal({ isOpen, onClose, setToast }) {
     }
 
     try {
-      await timesheetService.exportMonthlyBillingReport(matched.id, yearMonth);
-      setToast({ message: 'Monthly billing report generated successfully.', type: 'success' });
+      await timesheetService.exportMonthlyBillingReport(matched.id, yearMonth, matched.name);
+      setToast({ message: 'Monthly attendance report generated successfully.', type: 'success' });
       onClose();
     } catch (err) {
       console.error(err);
-      setToast({ message: err.message || 'No logged hours found for the selected candidate and month.', type: 'warning' });
+      setToast({ message: err.message || 'Failed to generate attendance report.', type: 'warning' });
     } finally {
       setSubmitting(false);
     }
@@ -61,14 +61,14 @@ export default function MonthlyDownloadModal({ isOpen, onClose, setToast }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Overlay backdrop */}
-      <div className="absolute inset-0 bg-[#0b0f19]/80 backdrop-blur-sm" onClick={onClose}></div>
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose}></div>
 
       {/* Card panel */}
-      <div className="relative z-10 w-full max-w-md glass bg-[#121826]/90 border border-white/5 rounded-2xl overflow-hidden shadow-2xl animate-scale-in">
-        <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between">
+      <div className="relative z-10 w-full max-w-md bg-[#111111] border border-[#2A2A2A] rounded-2xl overflow-hidden shadow-2xl animate-scale-in">
+        <div className="px-6 py-4 border-b border-[#2A2A2A] flex items-center justify-between">
           <h3 className="text-base font-bold flex items-center gap-2">
             <FileDown size={16} className="text-[#FF7A00]" />
-            <span>Monthly Candidate Downloader</span>
+            <span>Generate Monthly Attendance Report</span>
           </h3>
           <button onClick={onClose} className="p-1 text-gray-400 hover:text-white rounded transition cursor-pointer" aria-label="Close modal">
             <X size={16} />
@@ -112,11 +112,11 @@ export default function MonthlyDownloadModal({ isOpen, onClose, setToast }) {
 
           </div>
 
-          <div className="px-6 py-4 border-t border-white/5 flex justify-end gap-3 bg-black/10">
+          <div className="px-6 py-4 border-t border-[#2A2A2A] flex justify-end gap-3 bg-black/10">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border border-white/10 hover:border-gray-500 text-gray-300 hover:text-white rounded-xl text-sm font-semibold transition cursor-pointer"
+              className="px-4 py-2 border border-[#2A2A2A] hover:bg-white/5 text-[#B3B3B3] hover:text-white rounded-xl text-sm font-semibold transition cursor-pointer"
             >
               Cancel
             </button>
@@ -125,7 +125,7 @@ export default function MonthlyDownloadModal({ isOpen, onClose, setToast }) {
               disabled={submitting}
               className="px-4 py-2 bg-[#FF7A00] hover:bg-[#FF8C1A] disabled:bg-[#FF7A00]/50 text-white rounded-xl text-sm font-semibold shadow-lg shadow-[#FF7A00]/20 transition cursor-pointer"
             >
-              {submitting ? 'Generating...' : 'Generate & Download CSV'}
+              {submitting ? 'Generating...' : 'Download PDF'}
             </button>
           </div>
         </form>

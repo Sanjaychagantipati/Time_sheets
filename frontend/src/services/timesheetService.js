@@ -447,7 +447,7 @@ export const timesheetService = {
     }
   },
 
-  exportMonthlyBillingReport: async (userId, yearMonth) => {
+  exportMonthlyBillingReport: async (userId, yearMonth, candidateName = null) => {
     if (isMockMode()) {
       const timesheets = getTimesheets();
       const users = getUsers();
@@ -458,44 +458,64 @@ export const timesheetService = {
         .filter((t) => (t.userId === userId || String(t.userId) === String(userId)) && t.date.startsWith(yearMonth) && t.clockOut !== null)
         .sort((a, b) => new Date(a.date) - new Date(b.date));
 
-      if (monthlyLogs.length === 0) {
-        throw new Error(`No logged hours found for this candidate in the selected month`);
-      }
-
-      const totalHours = monthlyLogs.reduce((sum, log) => sum + log.hours, 0);
-      const totalBillable = totalHours * (candidate.rate || 0);
-      const currencySymbol = getCurrencySymbol(userId);
-      const currency = getCandidateCurrency(userId);
-
       const parts = yearMonth.split('-');
-      const labelDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, 1);
+      const year = parseInt(parts[0]);
+      const month = parseInt(parts[1]);
+      const daysInMonth = new Date(year, month, 0).getDate();
+
+      const labelDate = new Date(year, month - 1, 1);
       const monthLabel = labelDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
-      let csv = `VERGIL TEMPO STAFFING AGENCY - CANDIDATE BILLING REPORT\n`;
-      csv += `Candidate Name,"${candidate.name}"\n`;
-      csv += `Billing Month,"${monthLabel}"\n`;
-      csv += `Placed Client Company,"${candidate.clientCompany || 'N/A'}"\n`;
-      csv += `Payroll Hourly Rate,${currencySymbol}${(candidate.rate || 0).toFixed(2)} (${currency})\n\n`;
-      csv += `Date,Clock In,Clock Out,Total Hours,Location Captured,Work Notes\n`;
-
+      // Generate a mock text PDF content
+      let pdfContent = `%PDF-1.4\n`;
+      pdfContent += `% VERGIL REMNANT STAFFING SERVICES - MONTHLY ATTENDANCE PDF REPORT MOCK\n`;
+      pdfContent += `Month: ${monthLabel}\n`;
+      pdfContent += `Employee Name: ${candidate.name}\n`;
+      pdfContent += `Client Company: ${candidate.clientCompany || 'N/A'}\n\n`;
+      pdfContent += `Date | Day | Log In | Log Out | Total Hours | Employee Name | Client Company | Status\n`;
+      pdfContent += `------------------------------------------------------------------------------------------\n`;
+      
+      const logMap = {};
       monthlyLogs.forEach((log) => {
-        const cleanNotes = log.notes ? `"${log.notes.replace(/"/g, '""')}"` : '""';
-        const cleanLocation = log.location ? `"${log.location.replace(/"/g, '""')}"` : '""';
-        csv += `"${log.date}","${log.clockIn}","${log.clockOut}",${log.hours.toFixed(2)},${cleanLocation},${cleanNotes}\n`;
+        logMap[log.date] = log;
       });
 
-      csv += `\n`;
-      csv += `TOTAL BILLABLE HOURS,,,${totalHours.toFixed(2)}\n`;
-      csv += `TOTAL BILLABLE AMOUNT,,, "${currencySymbol}${totalBillable.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}"\n`;
+      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-      triggerFileDownload(csv, `Vergil_Tempo_${candidate.name.replace(/\s+/g, '_')}_${yearMonth}.csv`);
+      for (let dayVal = 1; dayVal <= daysInMonth; dayVal++) {
+        const dateObj = new Date(year, month - 1, dayVal);
+        const dayName = dayNames[dateObj.getDay()];
+        const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
+        const dateStr = `${String(dayVal).padStart(2, '0')}-${String(month).padStart(2, '0')}-${year}`;
+        
+        const dateStrIso = `${year}-${String(month).padStart(2, '0')}-${String(dayVal).padStart(2, '0')}`;
+        
+        if (isWeekend) {
+          pdfContent += `${dateStr} | ${dayName} | - | - | - | - | - | \n`;
+        } else {
+          const log = logMap[dateStrIso];
+          if (log) {
+            pdfContent += `${dateStr} | ${dayName} | ${log.clockIn || '-'} | ${log.clockOut || '-'} | ${log.hours.toFixed(2)} | ${candidate.name} | ${candidate.clientCompany || 'N/A'} | Present\n`;
+          } else {
+            pdfContent += `${dateStr} | ${dayName} | - | - | - | ${candidate.name} | ${candidate.clientCompany || 'N/A'} | Holiday\n`;
+          }
+        }
+      }
+
+      const pdfBlob = new Blob([pdfContent], { type: 'application/pdf' });
+      triggerBlobDownload(pdfBlob, `Vergil_Tempo_Attendance_${candidate.name.replace(/\s+/g, '_')}_${yearMonth}.pdf`);
       return true;
     } else {
-      const response = await api.get('/reports/export-monthly', {
-        params: { userId, month: yearMonth },
+      const parts = yearMonth.split('-');
+      const yearVal = parseInt(parts[0]);
+      const monthVal = parseInt(parts[1]);
+
+      const response = await api.get('/reports/monthly-attendance', {
+        params: { employeeId: userId, month: monthVal, year: yearVal },
         responseType: 'blob'
       });
-      triggerBlobDownload(response.data, `Vergil_Tempo_Billing_${userId}_${yearMonth}.csv`);
+      const safeName = candidateName ? candidateName.replace(/\s+/g, '_') : userId;
+      triggerBlobDownload(response.data, `Vergil_Tempo_Attendance_${safeName}_${yearMonth}.pdf`);
       return true;
     }
   }

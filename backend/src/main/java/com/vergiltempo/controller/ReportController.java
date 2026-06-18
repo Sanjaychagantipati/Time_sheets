@@ -1,5 +1,6 @@
 package com.vergiltempo.controller;
 
+import com.vergiltempo.dto.MonthlyAttendanceDTO;
 import com.vergiltempo.service.ReportService;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -48,5 +49,23 @@ public class ReportController {
         response.setHeader("Content-Disposition", "attachment; filename=\"" + filename + "\"");
         
         reportService.writeMonthlyCsv(response.getWriter(), userId, month);
+    }
+
+    @GetMapping("/monthly-attendance")
+    public void getMonthlyAttendancePdf(
+            @RequestParam String employeeId,
+            @RequestParam int month,
+            @RequestParam int year,
+            HttpServletResponse response) throws IOException {
+
+        MonthlyAttendanceDTO data = reportService.getMonthlyAttendanceData(employeeId, month, year);
+
+        String safeName = data.getEmployeeName().replaceAll("[^a-zA-Z0-9_]", "_");
+        String filename = "Vergil_Tempo_Attendance_" + safeName + "_" + year + "-" + String.format("%02d", month) + ".pdf";
+
+        response.setContentType("application/pdf");
+        response.setHeader("Content-Disposition", "attachment; filename=\"" + filename + "\"");
+
+        reportService.generateMonthlyAttendancePdf(response.getOutputStream(), data);
     }
 }

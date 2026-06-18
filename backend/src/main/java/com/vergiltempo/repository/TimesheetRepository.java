@@ -50,6 +50,9 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, String> {
 
     List<Timesheet> findByUserIdAndDateBetweenAndClockOutIsNotNullOrderByDateAscClockInAsc(
             String userId, LocalDate start, LocalDate end);
+
+    List<Timesheet> findByUserIdAndDateBetweenOrderByDateAsc(
+            String userId, LocalDate start, LocalDate end);
 }
 
 
