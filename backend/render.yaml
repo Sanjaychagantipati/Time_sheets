@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: vergil-tempo-api
+    runtime: java
+    rootDir: backend
+    buildCommand: mvn clean package
+    startCommand: java -jar target/timesheets-0.0.1-SNAPSHOT.jar
