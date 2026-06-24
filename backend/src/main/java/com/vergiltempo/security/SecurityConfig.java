@@ -58,7 +58,7 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/api/auth/login", "/api/test", "/error").permitAll()
+                        .requestMatchers("/api/auth/login", "/api/test", "/api/health/db", "/error").permitAll()
                         .anyRequest().authenticated()
 
                 )
