@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import api, { isMockMode } from '../services/api';
+import { useAuth } from './AuthContext';
 
 export const ClientCompanyContext = createContext(null);
 
@@ -7,6 +8,7 @@ const DEFAULT_COMPANIES = ['Microsoft', 'Google', 'Meta', 'Amazon', 'Netflix'];
 
 export const ClientCompanyProvider = ({ children }) => {
   const [companies, setCompanies] = useState([]);
+  const { isAuthenticated, user } = useAuth();
 
   // Load companies on mount
   useEffect(() => {
@@ -25,19 +27,21 @@ export const ClientCompanyProvider = ({ children }) => {
         localStorage.setItem('vt_client_companies', JSON.stringify(DEFAULT_COMPANIES));
       }
     } else {
-      async function loadCompanies() {
-        try {
-          const response = await api.get('/clients');
-          const names = response.data.map(c => c.name);
-          setCompanies(names);
-          localStorage.setItem('vt_client_companies', JSON.stringify(names));
-        } catch (err) {
-          console.error("Failed to load client companies from API", err);
+      if (isAuthenticated && user && (user.role === 'admin' || user.role === 'ADMIN')) {
+        async function loadCompanies() {
+          try {
+            const response = await api.get('/clients');
+            const names = response.data.map(c => c.name);
+            setCompanies(names);
+            localStorage.setItem('vt_client_companies', JSON.stringify(names));
+          } catch (err) {
+            console.error("Failed to load client companies from API", err);
+          }
         }
+        loadCompanies();
       }
-      loadCompanies();
     }
-  }, []);
+  }, [isAuthenticated, user]);
 
   const addCompany = async (companyName) => {
     const trimmed = companyName.trim();

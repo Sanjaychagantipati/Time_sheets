@@ -1,5 +1,6 @@
 import api, { isMockMode } from './api';
 import { getStoredUsers } from '../data/mockData';
+import { clearAuthCredentials } from '../utils/authStorage';
 // eslint-disable-next-line no-unused-vars
 import { API_URL } from '../config/api';
 
@@ -42,8 +43,7 @@ export const authService = {
   },
 
   logout: () => {
-    localStorage.removeItem('vt_token');
-    localStorage.removeItem('vt_user');
+    clearAuthCredentials();
   },
 
   getCurrentUser: () => {

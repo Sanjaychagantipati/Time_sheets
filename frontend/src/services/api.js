@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { API_URL } from '../config/api';
+import { clearAuthCredentials } from '../utils/authStorage';
 
 // Check if we should use local mock data fallback
 export const isMockMode = () => {
@@ -42,10 +43,9 @@ api.interceptors.request.use(
 // Gracefully handle session expiry (401 Unauthorized)
 api.interceptors.response.use(
   (response) => response,
-  async (error) => {
+  (error) => {
     if (error.response && error.response.status === 401) {
-      const { authService } = await import('./authService');
-      authService.logout();
+      clearAuthCredentials();
       window.location.href = '/';
     }
     return Promise.reject(error);
