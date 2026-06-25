@@ -108,6 +108,10 @@ public class TimesheetServiceImpl implements TimesheetService {
         BigDecimal decimalHours = BigDecimal.valueOf(minutes)
                 .divide(BigDecimal.valueOf(60), 2, RoundingMode.HALF_UP);
 
+        if (decimalHours.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Working hours cannot be negative");
+        }
+
         BigDecimal currentHours = timesheet.getHours() != null ? timesheet.getHours() : BigDecimal.ZERO;
         timesheet.setHours(currentHours.add(decimalHours));
         timesheet.setNotes(request.getNotes());

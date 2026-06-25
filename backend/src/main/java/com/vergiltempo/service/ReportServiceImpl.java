@@ -49,6 +49,9 @@ public class ReportServiceImpl implements ReportService {
         pw.println("Candidate Name,Client Company,Hourly Rate ($),Date,Clock In,Clock Out,Total Hours,Location Captured,Work Notes");
 
         for (Timesheet t : timesheets) {
+            if (t.getClockOut() == null) {
+                continue;
+            }
             String name = csvQuote(t.getUser().getName());
             String clientName = csvQuote(t.getClient().getName());
             String rate = t.getUser().getHourlyRate().toString();
@@ -142,6 +145,10 @@ public class ReportServiceImpl implements ReportService {
 
         List<Timesheet> logs = timesheetRepository.findByUserIdAndDateBetweenOrderByDateAsc(
                 employeeId, start, end);
+
+        if (logs.isEmpty()) {
+            throw new ResourceNotFoundException("No logged hours found for this candidate in the selected month");
+        }
 
         // Map logs by date for fast lookup
         java.util.Map<LocalDate, Timesheet> logMap = new java.util.HashMap<>();

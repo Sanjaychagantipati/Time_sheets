@@ -204,8 +204,12 @@ public class AdminServiceImpl implements AdminService {
         if (minutes < 0) {
             minutes += 24 * 60;
         }
-        return BigDecimal.valueOf(minutes)
+        BigDecimal result = BigDecimal.valueOf(minutes)
                 .divide(BigDecimal.valueOf(60), 2, RoundingMode.HALF_UP);
+        if (result.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Working hours cannot be negative");
+        }
+        return result;
     }
 
     private TimesheetLogDto mapToTimesheetLogDto(Timesheet t) {

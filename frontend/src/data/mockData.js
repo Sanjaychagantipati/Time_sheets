@@ -47,58 +47,7 @@ export const clients = [
 
 // Seed initial mock timesheets if not present in localStorage
 const generateSeedTimesheets = () => {
-  const seedLogs = [];
-  const now = new Date();
-  const todayStr = now.toISOString().split('T')[0];
-
-  // Past logs
-  seedLogs.push({
-    id: "ts-001",
-    userId: 2,
-    employeeName: "John Doe",
-    client: "Microsoft",
-    date: "2026-06-11",
-    clockIn: "09:00:00",
-    clockOut: "17:15:00",
-    hours: 8.25,
-    notes: "Employee dashboard implementation",
-    status: "COMPLETED",
-    location: "Remote (Home Office)",
-    clientCompany: "Microsoft"
-  });
-
-  seedLogs.push({
-    id: "ts-002",
-    userId: 3,
-    employeeName: "Jane Smith",
-    client: "Google",
-    date: "2026-06-11",
-    clockIn: "10:00:00",
-    clockOut: "18:00:00",
-    hours: 8.00,
-    notes: "Vite config and rebrand changes",
-    status: "COMPLETED",
-    location: "Remote (Google HQ)",
-    clientCompany: "Google"
-  });
-
-  // Active shift for John Doe today
-  seedLogs.push({
-    id: "ts-active-demo",
-    userId: 2,
-    employeeName: "John Doe",
-    client: "Microsoft",
-    date: todayStr,
-    clockIn: "09:00:00",
-    clockOut: null,
-    hours: null,
-    notes: "",
-    status: "ACTIVE",
-    location: "HQ - Main Office",
-    clientCompany: "Microsoft"
-  });
-
-  return seedLogs;
+  return [];
 };
 
 // Initialize localStorage databases

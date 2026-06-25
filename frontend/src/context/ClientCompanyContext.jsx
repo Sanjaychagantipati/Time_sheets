@@ -1,4 +1,5 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
+import api, { isMockMode } from '../services/api';
 
 export const ClientCompanyContext = createContext(null);
 
@@ -9,22 +10,36 @@ export const ClientCompanyProvider = ({ children }) => {
 
   // Load companies on mount
   useEffect(() => {
-    const stored = localStorage.getItem('vt_client_companies');
-    if (stored) {
-      try {
-        setCompanies(JSON.parse(stored));
-      } catch (err) {
-        console.error("Failed to parse stored client companies", err);
+    if (isMockMode()) {
+      const stored = localStorage.getItem('vt_client_companies');
+      if (stored) {
+        try {
+          setCompanies(JSON.parse(stored));
+        } catch (err) {
+          console.error("Failed to parse stored client companies", err);
+          setCompanies(DEFAULT_COMPANIES);
+          localStorage.setItem('vt_client_companies', JSON.stringify(DEFAULT_COMPANIES));
+        }
+      } else {
         setCompanies(DEFAULT_COMPANIES);
         localStorage.setItem('vt_client_companies', JSON.stringify(DEFAULT_COMPANIES));
       }
     } else {
-      setCompanies(DEFAULT_COMPANIES);
-      localStorage.setItem('vt_client_companies', JSON.stringify(DEFAULT_COMPANIES));
+      async function loadCompanies() {
+        try {
+          const response = await api.get('/clients');
+          const names = response.data.map(c => c.name);
+          setCompanies(names);
+          localStorage.setItem('vt_client_companies', JSON.stringify(names));
+        } catch (err) {
+          console.error("Failed to load client companies from API", err);
+        }
+      }
+      loadCompanies();
     }
   }, []);
 
-  const addCompany = (companyName) => {
+  const addCompany = async (companyName) => {
     const trimmed = companyName.trim();
     if (!trimmed) {
       throw new Error('Company name cannot be empty');
@@ -38,15 +53,30 @@ export const ClientCompanyProvider = ({ children }) => {
       throw new Error(`Company "${trimmed}" already exists`);
     }
 
-    const updated = [...companies, trimmed];
-    setCompanies(updated);
-    localStorage.setItem('vt_client_companies', JSON.stringify(updated));
+    if (isMockMode()) {
+      const updated = [...companies, trimmed];
+      setCompanies(updated);
+      localStorage.setItem('vt_client_companies', JSON.stringify(updated));
+    } else {
+      const response = await api.post('/clients', { name: trimmed });
+      const newClient = response.data;
+      const updated = [...companies, newClient.name];
+      setCompanies(updated);
+      localStorage.setItem('vt_client_companies', JSON.stringify(updated));
+    }
   };
 
-  const deleteCompany = (companyName) => {
-    const updated = companies.filter(c => c !== companyName);
-    setCompanies(updated);
-    localStorage.setItem('vt_client_companies', JSON.stringify(updated));
+  const deleteCompany = async (companyName) => {
+    if (isMockMode()) {
+      const updated = companies.filter(c => c !== companyName);
+      setCompanies(updated);
+      localStorage.setItem('vt_client_companies', JSON.stringify(updated));
+    } else {
+      await api.delete('/clients', { params: { name: companyName } });
+      const updated = companies.filter(c => c !== companyName);
+      setCompanies(updated);
+      localStorage.setItem('vt_client_companies', JSON.stringify(updated));
+    }
   };
 
   return (
