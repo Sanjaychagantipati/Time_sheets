@@ -158,48 +158,61 @@ public class ReportServiceImpl implements ReportService {
 
         java.util.List<AttendanceRowDTO> rows = new java.util.ArrayList<>();
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
+        LocalDate today = LocalDate.now();
 
         for (LocalDate date = start; !date.isAfter(end); date = date.plusDays(1)) {
-            DayOfWeek dayOfWeek = date.getDayOfWeek();
-            boolean isWeekend = (dayOfWeek == DayOfWeek.SATURDAY || dayOfWeek == DayOfWeek.SUNDAY);
-            
             String dateStr = date.format(dateFormatter);
-            String dayStr = dayOfWeek.getDisplayName(TextStyle.FULL, Locale.ENGLISH);
 
             AttendanceRowDTO.AttendanceRowDTOBuilder rowBuilder = AttendanceRowDTO.builder()
-                    .date(dateStr)
-                    .day(dayStr);
+                    .date(dateStr);
 
-            if (isWeekend) {
+            if (date.isAfter(today)) {
+                // Future date: hasn't happened yet, so only show the date
                 rowBuilder
-                        .logIn("-")
-                        .logOut("-")
-                        .totalHours("-")
-                        .employeeName("-")
-                        .clientCompany("-")
+                        .day("")
+                        .logIn("")
+                        .logOut("")
+                        .totalHours("")
+                        .employeeName("")
+                        .clientCompany("")
                         .status("");
             } else {
-                Timesheet log = logMap.get(date);
-                if (log != null) {
-                    String logInStr = log.getClockIn() != null ? log.getClockIn().format(DateTimeFormatter.ofPattern("HH:mm")) : "-";
-                    String logOutStr = log.getClockOut() != null ? log.getClockOut().format(DateTimeFormatter.ofPattern("HH:mm")) : "-";
-                    String hoursStr = log.getHours() != null ? log.getHours().setScale(2, BigDecimal.ROUND_HALF_UP).toString() : "0.00";
+                DayOfWeek dayOfWeek = date.getDayOfWeek();
+                boolean isWeekend = (dayOfWeek == DayOfWeek.SATURDAY || dayOfWeek == DayOfWeek.SUNDAY);
+                String dayStr = dayOfWeek.getDisplayName(TextStyle.FULL, Locale.ENGLISH);
+                rowBuilder.day(dayStr);
 
-                    rowBuilder
-                            .logIn(logInStr)
-                            .logOut(logOutStr)
-                            .totalHours(hoursStr)
-                            .employeeName(candidate.getName())
-                            .clientCompany(candidate.getClient() != null ? candidate.getClient().getName() : "N/A")
-                            .status("Present");
-                } else {
+                if (isWeekend) {
                     rowBuilder
                             .logIn("-")
                             .logOut("-")
                             .totalHours("-")
-                            .employeeName(candidate.getName())
-                            .clientCompany(candidate.getClient() != null ? candidate.getClient().getName() : "N/A")
-                            .status("Holiday");
+                            .employeeName("-")
+                            .clientCompany("-")
+                            .status("");
+                } else {
+                    Timesheet log = logMap.get(date);
+                    if (log != null) {
+                        String logInStr = log.getClockIn() != null ? log.getClockIn().format(DateTimeFormatter.ofPattern("HH:mm")) : "-";
+                        String logOutStr = log.getClockOut() != null ? log.getClockOut().format(DateTimeFormatter.ofPattern("HH:mm")) : "-";
+                        String hoursStr = log.getHours() != null ? log.getHours().setScale(2, BigDecimal.ROUND_HALF_UP).toString() : "0.00";
+
+                        rowBuilder
+                                .logIn(logInStr)
+                                .logOut(logOutStr)
+                                .totalHours(hoursStr)
+                                .employeeName(candidate.getName())
+                                .clientCompany(candidate.getClient() != null ? candidate.getClient().getName() : "N/A")
+                                .status("Present");
+                    } else {
+                        rowBuilder
+                                .logIn("-")
+                                .logOut("-")
+                                .totalHours("-")
+                                .employeeName(candidate.getName())
+                                .clientCompany(candidate.getClient() != null ? candidate.getClient().getName() : "N/A")
+                                .status("Holiday");
+                    }
                 }
             }
             rows.add(rowBuilder.build());
