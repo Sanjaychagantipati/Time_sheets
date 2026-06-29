@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { timesheetService } from '../services/timesheetService';
 import CreateEmployeeModal from '../components/admin/CreateEmployeeModal';
 import EditLogModal from '../components/admin/EditLogModal';
@@ -16,7 +16,6 @@ import {
   FileSpreadsheet,
   Edit3,
   Trash2,
-  MapPin,
   ClipboardX
 } from 'lucide-react';
 import { formatDateFriendly, formatTime12h } from '../utils/formatters';
@@ -135,7 +134,7 @@ export default function AdminDashboard() {
         endDate: filterEndDate
       });
       setToast({ message: 'Timesheets exported successfully!', type: 'success' });
-    } catch (err) {
+    } catch {
       setToast({ message: 'Master export failed.', type: 'error' });
     }
   };
@@ -146,7 +145,7 @@ export default function AdminDashboard() {
         await timesheetService.deleteLog(logId);
         setToast({ message: 'Timesheet record deleted', type: 'success' });
         loadData();
-      } catch (err) {
+      } catch {
         setToast({ message: 'Failed to delete record.', type: 'error' });
       }
     }
@@ -199,7 +198,7 @@ export default function AdminDashboard() {
         setToast({ message: `${count} timesheet records deleted`, type: 'success' });
         setSelectedTimesheets([]);
         loadData();
-      } catch (err) {
+      } catch {
         setToast({ message: 'Failed to delete selected records.', type: 'error' });
       }
     }
@@ -459,7 +458,6 @@ export default function AdminDashboard() {
                   <th className="px-6 py-4">Total Hours</th>
                   <th className="px-6 py-4">Status</th>
                   <th className="px-6 py-4">Notes</th>
-                  <th className="px-6 py-4">Location</th>
                   <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
               </thead>
@@ -506,12 +504,6 @@ export default function AdminDashboard() {
                       </td>
                       <td className="px-6 py-4 text-xs text-[#B3B3B3] max-w-[200px] truncate" title={log.notes}>
                         {log.notes || <span className="text-gray-600 italic">none</span>}
-                      </td>
-                      <td className="px-6 py-4 text-xs text-[#B3B3B3] max-w-[180px] truncate" title={log.location}>
-                        <div className="flex items-center gap-1">
-                          <MapPin size={11} className="text-[#FF7A00] shrink-0" />
-                          <span>{log.location ? log.location.split(' (')[0] : 'N/A'}</span>
-                        </div>
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="inline-flex gap-2">

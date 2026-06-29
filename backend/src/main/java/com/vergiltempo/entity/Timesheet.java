@@ -36,11 +36,27 @@ public class Timesheet {
     @Column(precision = 5, scale = 2)
     private BigDecimal hours;
 
-    @Column(length = 255)
-    private String location;
 
     @Column(columnDefinition = "TEXT")
     private String notes;
+
+    @Column(length = 50)
+    private String browser;
+
+    @Column(name = "operating_system", length = 50)
+    private String operatingSystem;
+
+    @Column(name = "device_type", length = 50)
+    private String deviceType;
+
+    @Column(name = "screen_resolution", length = 30)
+    private String screenResolution;
+
+    @Column(name = "ip_address", length = 45)
+    private String ipAddress;
+
+    @Column(name = "user_agent", columnDefinition = "TEXT")
+    private String userAgent;
 
     @Column(name = "created_at", insertable = false, updatable = false, columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime createdAt;
@@ -49,7 +65,8 @@ public class Timesheet {
     }
 
     @Builder
-    public Timesheet(String id, User user, Client client, LocalDate date, LocalTime clockIn, LocalTime clockOut, BigDecimal hours, String location, String notes, LocalDateTime createdAt) {
+    public Timesheet(String id, User user, Client client, LocalDate date, LocalTime clockIn, LocalTime clockOut, BigDecimal hours, String notes, LocalDateTime createdAt,
+                     String browser, String operatingSystem, String deviceType, String screenResolution, String ipAddress, String userAgent) {
         this.id = id;
         this.user = user;
         this.client = client;
@@ -57,9 +74,14 @@ public class Timesheet {
         this.clockIn = clockIn;
         this.clockOut = clockOut;
         this.hours = hours;
-        this.location = location;
         this.notes = notes;
         this.createdAt = createdAt;
+        this.browser = browser;
+        this.operatingSystem = operatingSystem;
+        this.deviceType = deviceType;
+        this.screenResolution = screenResolution;
+        this.ipAddress = ipAddress;
+        this.userAgent = userAgent;
     }
 
     public String getId() {
@@ -118,13 +140,6 @@ public class Timesheet {
         this.hours = hours;
     }
 
-    public String getLocation() {
-        return location;
-    }
-
-    public void setLocation(String location) {
-        this.location = location;
-    }
 
     public String getNotes() {
         return notes;
@@ -132,6 +147,54 @@ public class Timesheet {
 
     public void setNotes(String notes) {
         this.notes = notes;
+    }
+
+    public String getBrowser() {
+        return browser;
+    }
+
+    public void setBrowser(String browser) {
+        this.browser = browser;
+    }
+
+    public String getOperatingSystem() {
+        return operatingSystem;
+    }
+
+    public void setOperatingSystem(String operatingSystem) {
+        this.operatingSystem = operatingSystem;
+    }
+
+    public String getDeviceType() {
+        return deviceType;
+    }
+
+    public void setDeviceType(String deviceType) {
+        this.deviceType = deviceType;
+    }
+
+    public String getScreenResolution() {
+        return screenResolution;
+    }
+
+    public void setScreenResolution(String screenResolution) {
+        this.screenResolution = screenResolution;
+    }
+
+    public String getIpAddress() {
+        return ipAddress;
+    }
+
+    public void setIpAddress(String ipAddress) {
+        this.ipAddress = ipAddress;
+    }
+
+    public String getUserAgent() {
+        return userAgent;
+    }
+
+    public void setUserAgent(String userAgent) {
+        this.userAgent = userAgent;
     }
 
     public LocalDateTime getCreatedAt() {

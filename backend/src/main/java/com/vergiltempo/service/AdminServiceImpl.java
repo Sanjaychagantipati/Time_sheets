@@ -71,6 +71,10 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     public TimesheetLogDto createManualTimesheet(AdminTimesheetRequest request) {
+        if (request.getDate().isAfter(LocalDate.now())) {
+            throw new IllegalArgumentException("Future timestamps are not allowed");
+        }
+
         User user = userRepository.findById(request.getUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + request.getUserId()));
 
@@ -78,29 +82,15 @@ public class AdminServiceImpl implements AdminService {
 
         BigDecimal hours = calculateHours(request.getClockIn(), request.getClockOut());
 
-        java.util.Optional<Timesheet> existingOpt = timesheetRepository.findByUserAndDate(user, request.getDate());
-        Timesheet timesheet;
-        if (existingOpt.isPresent()) {
-            timesheet = existingOpt.get();
-            BigDecimal currentHours = timesheet.getHours() != null ? timesheet.getHours() : BigDecimal.ZERO;
-            timesheet.setHours(currentHours.add(hours != null ? hours : BigDecimal.ZERO));
-            timesheet.setClockIn(request.getClockIn().truncatedTo(ChronoUnit.SECONDS));
-            timesheet.setClockOut(request.getClockOut() != null ? request.getClockOut().truncatedTo(ChronoUnit.SECONDS) : null);
-            timesheet.setNotes(request.getNotes());
-            timesheet.setLocation(request.getLocation() != null ? request.getLocation() : "Office (Manual)");
-            timesheet.setClient(client);
-        } else {
-            timesheet = Timesheet.builder()
-                    .user(user)
-                    .client(client)
-                    .date(request.getDate())
-                    .clockIn(request.getClockIn().truncatedTo(ChronoUnit.SECONDS))
-                    .clockOut(request.getClockOut() != null ? request.getClockOut().truncatedTo(ChronoUnit.SECONDS) : null)
-                    .hours(hours)
-                    .notes(request.getNotes())
-                    .location(request.getLocation() != null ? request.getLocation() : "Office (Manual)")
-                    .build();
-        }
+        Timesheet timesheet = Timesheet.builder()
+                .user(user)
+                .client(client)
+                .date(request.getDate())
+                .clockIn(request.getClockIn().truncatedTo(ChronoUnit.SECONDS))
+                .clockOut(request.getClockOut() != null ? request.getClockOut().truncatedTo(ChronoUnit.SECONDS) : null)
+                .hours(hours)
+                .notes(request.getNotes())
+                .build();
 
         Timesheet saved = timesheetRepository.save(timesheet);
         return mapToTimesheetLogDto(saved);
@@ -108,6 +98,10 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     public TimesheetLogDto updateTimesheet(String logId, AdminTimesheetRequest request) {
+        if (request.getDate().isAfter(LocalDate.now())) {
+            throw new IllegalArgumentException("Future timestamps are not allowed");
+        }
+
         Timesheet timesheet = timesheetRepository.findById(logId)
                 .orElseThrow(() -> new ResourceNotFoundException("Timesheet entry not found: " + logId));
 
@@ -120,7 +114,6 @@ public class AdminServiceImpl implements AdminService {
         timesheet.setClockOut(request.getClockOut() != null ? request.getClockOut().truncatedTo(ChronoUnit.SECONDS) : null);
         timesheet.setHours(hours);
         timesheet.setNotes(request.getNotes());
-        timesheet.setLocation(request.getLocation());
         timesheet.setClient(client);
 
         Timesheet saved = timesheetRepository.save(timesheet);
@@ -220,7 +213,6 @@ public class AdminServiceImpl implements AdminService {
                 .clockIn(t.getClockIn())
                 .clockOut(t.getClockOut())
                 .hours(t.getHours())
-                .location(t.getLocation())
                 .notes(t.getNotes())
                 .clientCompany(t.getClient().getName())
                 .status(t.getClockOut() == null ? "ACTIVE" : "COMPLETED")

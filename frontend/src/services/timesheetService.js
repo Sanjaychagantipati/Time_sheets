@@ -2,6 +2,26 @@ import api, { isMockMode } from './api';
 import { getTimesheets, saveTimesheets, getUsers, saveUsers } from './mockDb';
 // eslint-disable-next-line no-unused-vars
 import { API_URL } from '../config/api';
+import { getDeviceMetadata } from '../utils/deviceMetadata';
+
+// Offline Queue Helpers
+export const getOfflineQueue = () => {
+  try {
+    const queue = localStorage.getItem('vt_offline_queue');
+    return queue ? JSON.parse(queue) : [];
+  } catch (e) {
+    console.error("Error reading offline queue", e);
+    return [];
+  }
+};
+
+export const saveOfflineQueue = (queue) => {
+  try {
+    localStorage.setItem('vt_offline_queue', JSON.stringify(queue));
+  } catch (e) {
+    console.error("Error saving offline queue", e);
+  }
+};
 
 export const getCandidateCurrency = (userId) => {
   try {
@@ -47,17 +67,119 @@ export const triggerSync = () => {
 export const timesheetService = {
   // --- EMPLOYEE TIMESHEET FUNCTIONS ---
   getActiveClockIn: async (userId) => {
+    // If offline, read active shift from localStorage fallback
+    if (!navigator.onLine) {
+      try {
+        const active = localStorage.getItem('vt_active_shift');
+        if (active) {
+          const parsed = JSON.parse(active);
+          if (parsed.userId === userId) {
+            return { hasActive: true, log: parsed };
+          }
+        }
+      } catch (e) {
+        console.error("Error reading offline active shift", e);
+      }
+      return { hasActive: false, log: null };
+    }
+
     if (isMockMode()) {
       const logs = getTimesheets();
       const active = logs.find((t) => t.userId === userId && t.clockOut === null);
+      if (active) {
+        localStorage.setItem('vt_active_shift', JSON.stringify(active));
+      } else {
+        localStorage.removeItem('vt_active_shift');
+      }
       return { hasActive: !!active, log: active || null };
     } else {
-      const response = await api.get('/timesheets/active');
-      return response.data;
+      try {
+        const response = await api.get('/timesheets/active');
+        if (response.data.hasActive) {
+          localStorage.setItem('vt_active_shift', JSON.stringify(response.data.log));
+        } else {
+          localStorage.removeItem('vt_active_shift');
+        }
+        return response.data;
+      } catch (err) {
+        // Fallback if API request fails
+        const active = localStorage.getItem('vt_active_shift');
+        if (active) {
+          const parsed = JSON.parse(active);
+          if (parsed.userId === userId) {
+            return { hasActive: true, log: parsed };
+          }
+        }
+        throw err;
+      }
     }
   },
 
-  clockIn: async (userId, locationString) => {
+  clockIn: async (userId) => {
+    const metadata = getDeviceMetadata();
+
+    // If offline, queue request
+    if (!navigator.onLine) {
+      const queue = getOfflineQueue();
+      const now = new Date();
+      const todayStr = now.toISOString().split('T')[0];
+      const timeStr = now.toTimeString().split(' ')[0];
+
+      // Check active
+      const activeStr = localStorage.getItem('vt_active_shift');
+      if (activeStr) {
+        const active = JSON.parse(activeStr);
+        if (active.clockOut === null) {
+          throw new Error('Active shift already exists');
+        }
+      }
+
+
+      let clientCompany = 'N/A';
+      try {
+        const storedUser = localStorage.getItem('vt_user');
+        if (storedUser) {
+          clientCompany = JSON.parse(storedUser).clientCompany || 'N/A';
+        }
+      } catch (e) {
+        console.warn('Error reading stored user for clientCompany fallback', e);
+      }
+
+      const tempLog = {
+        id: `offline-log-${Date.now()}`,
+        userId: userId,
+        date: todayStr,
+        clockIn: timeStr,
+        clockOut: null,
+        hours: 0,
+        notes: '',
+        clientCompany: clientCompany,
+        status: 'ACTIVE',
+        isOfflinePending: true
+      };
+
+      queue.push({
+        id: `q-${Date.now()}`,
+        action: 'CLOCK_IN',
+        userId: userId,
+        deviceTime: Date.now(),
+        deviceMetadata: metadata,
+        clientCompany: clientCompany
+      });
+      saveOfflineQueue(queue);
+
+      localStorage.setItem('vt_active_shift', JSON.stringify(tempLog));
+
+      if (isMockMode()) {
+        const logs = getTimesheets();
+        logs.push(tempLog);
+        saveTimesheets(logs);
+      }
+
+      triggerSync();
+      return { message: 'Clocked in locally (Offline)', log: tempLog };
+    }
+
     if (isMockMode()) {
       const logs = getTimesheets();
       const users = getUsers();
@@ -66,51 +188,104 @@ export const timesheetService = {
       const todayStr = now.toISOString().split('T')[0];
       const timeStr = now.toTimeString().split(' ')[0];
 
-      // Check if there is already an active shift
+      // Check active
       const active = logs.find((t) => t.userId === userId && t.clockOut === null);
       if (active) {
         throw new Error('Active shift already exists');
       }
 
-      // Check if a daily record already exists for today
-      const existingIndex = logs.findIndex((t) => t.userId === userId && t.date === todayStr);
 
-      if (existingIndex !== -1) {
-        const log = logs[existingIndex];
-        log.clockIn = timeStr;
-        log.clockOut = null;
-        log.location = locationString;
-        log.status = 'ACTIVE';
-        saveTimesheets(logs);
-        triggerSync();
-        return { message: 'Clocked in successfully', log };
-      } else {
-        const newLog = {
-          id: `log-${Date.now()}`,
-          userId: userId,
-          date: todayStr,
-          clockIn: timeStr,
-          clockOut: null,
-          hours: 0,
-          notes: '',
-          location: locationString,
-          clientCompany: currentUser ? currentUser.clientCompany : 'N/A',
-          status: 'ACTIVE'
-        };
+      const newLog = {
+        id: `log-${Date.now()}`,
+        userId: userId,
+        date: todayStr,
+        clockIn: timeStr,
+        clockOut: null,
+        hours: 0,
+        notes: '',
+        clientCompany: currentUser ? currentUser.clientCompany : 'N/A',
+        status: 'ACTIVE',
+        browser: metadata.browser,
+        operatingSystem: metadata.operatingSystem,
+        deviceType: metadata.deviceType,
+        screenResolution: metadata.screenResolution,
+        ipAddress: '127.0.0.1',
+        userAgent: navigator.userAgent
+      };
 
-        logs.push(newLog);
-        saveTimesheets(logs);
-        triggerSync();
-        return { message: 'Clocked in successfully', log: newLog };
-      }
+      logs.push(newLog);
+      saveTimesheets(logs);
+      localStorage.setItem('vt_active_shift', JSON.stringify(newLog));
+      triggerSync();
+      return { message: 'Clocked in successfully', log: newLog };
     } else {
-      const response = await api.post('/timesheets/clock-in', { location: locationString });
+      const response = await api.post('/timesheets/clock-in', {
+        browser: metadata.browser,
+        operatingSystem: metadata.operatingSystem,
+        deviceType: metadata.deviceType,
+        screenResolution: metadata.screenResolution
+      });
+      if (response.data && response.data.log) {
+        localStorage.setItem('vt_active_shift', JSON.stringify(response.data.log));
+      }
       triggerSync();
       return response.data;
     }
   },
 
   clockOut: async (activeClockId, notes) => {
+    const metadata = getDeviceMetadata();
+
+    // If offline, queue request
+    if (!navigator.onLine) {
+      const queue = getOfflineQueue();
+      const now = new Date();
+      const todayStr = now.toISOString().split('T')[0];
+      const timeStr = now.toTimeString().split(' ')[0];
+
+      const activeStr = localStorage.getItem('vt_active_shift');
+      if (!activeStr) {
+        throw new Error('No active shift found');
+      }
+
+      const log = JSON.parse(activeStr);
+      log.clockOut = timeStr;
+      log.notes = notes.trim();
+      log.status = 'COMPLETED';
+      delete log.isOfflinePending;
+
+      const inTime = new Date(`${log.date}T${log.clockIn}`);
+      const outTime = new Date(`${todayStr}T${timeStr}`);
+      let diffHours = (outTime - inTime) / 3600000;
+      if (diffHours < 0) diffHours = 0;
+      log.hours = parseFloat(diffHours.toFixed(2));
+
+      queue.push({
+        id: `q-${Date.now()}`,
+        action: 'CLOCK_OUT',
+        activeClockId: activeClockId || log.id,
+        userId: log.userId,
+        notes: notes,
+        deviceTime: Date.now(),
+        deviceMetadata: metadata
+      });
+      saveOfflineQueue(queue);
+
+      localStorage.removeItem('vt_active_shift');
+
+      if (isMockMode()) {
+        const logs = getTimesheets();
+        const idx = logs.findIndex(t => t.id === activeClockId || (t.userId === log.userId && t.clockOut === null));
+        if (idx !== -1) {
+          logs[idx] = log;
+          saveTimesheets(logs);
+        }
+      }
+
+      triggerSync();
+      return { message: 'Clocked out locally (Offline)', log };
+    }
+
     if (isMockMode()) {
       const logs = getTimesheets();
       const logIndex = logs.findIndex((t) => t.id === activeClockId);
@@ -123,38 +298,206 @@ export const timesheetService = {
         log.clockOut = timeStr;
         log.notes = notes.trim();
         log.status = 'COMPLETED';
+        log.browser = metadata.browser;
+        log.operatingSystem = metadata.operatingSystem;
+        log.deviceType = metadata.deviceType;
+        log.screenResolution = metadata.screenResolution;
 
-        // Calculate hours
         const inTime = new Date(`${log.date}T${log.clockIn}`);
         const outTime = new Date(`${todayStr}T${timeStr}`);
         let diffHours = (outTime - inTime) / 3600000;
         if (diffHours < 0) diffHours = 0;
-        const currentHours = log.hours || 0;
-        log.hours = parseFloat((currentHours + diffHours).toFixed(2));
+        log.hours = parseFloat(diffHours.toFixed(2));
 
         logs[logIndex] = log;
         saveTimesheets(logs);
+        localStorage.removeItem('vt_active_shift');
         triggerSync();
         return { message: 'Clocked out successfully', log };
       }
       throw new Error('Active clock session not found');
     } else {
-      const response = await api.post('/timesheets/clock-out', { notes });
+      const response = await api.post('/timesheets/clock-out', {
+        notes,
+        browser: metadata.browser,
+        operatingSystem: metadata.operatingSystem,
+        deviceType: metadata.deviceType,
+        screenResolution: metadata.screenResolution
+      });
+      localStorage.removeItem('vt_active_shift');
       triggerSync();
       return response.data;
     }
   },
 
   getMyLogs: async (userId) => {
+    // If offline, read from cache and overlay offline pending items
+    if (!navigator.onLine) {
+      try {
+        const stored = localStorage.getItem('vt_cached_logs');
+        let logs = stored ? JSON.parse(stored) : [];
+        const queue = getOfflineQueue().filter(q => q.userId === userId);
+
+        queue.forEach(item => {
+          const itemDate = new Date(item.deviceTime).toISOString().split('T')[0];
+          const itemTime = new Date(item.deviceTime).toTimeString().split(' ')[0];
+
+          if (item.action === 'CLOCK_IN') {
+            logs.unshift({
+              id: `pending-${item.id}`,
+              userId: item.userId,
+              date: itemDate,
+              clockIn: itemTime,
+              clockOut: null,
+              hours: 0,
+              notes: '',
+              clientCompany: item.clientCompany || 'N/A',
+              status: 'ACTIVE',
+              isOfflinePending: true
+            });
+          } else if (item.action === 'CLOCK_OUT') {
+            const activeIdx = logs.findIndex(l => l.clockOut === null);
+            if (activeIdx !== -1) {
+              logs[activeIdx].clockOut = itemTime;
+              logs[activeIdx].notes = item.notes;
+              logs[activeIdx].status = 'COMPLETED';
+              logs[activeIdx].isOfflinePending = true;
+
+              const inTime = new Date(`${logs[activeIdx].date}T${logs[activeIdx].clockIn}`);
+              const outTime = new Date(`${itemDate}T${itemTime}`);
+              let diffHours = (outTime - inTime) / 3600000;
+              if (diffHours < 0) diffHours = 0;
+              logs[activeIdx].hours = parseFloat(diffHours.toFixed(2));
+            }
+          }
+        });
+        return logs;
+      } catch (e) {
+        console.error("Error overlaying offline queue in getMyLogs", e);
+      }
+      return [];
+    }
+
     if (isMockMode()) {
       const logs = getTimesheets();
-      return logs
-        .filter((t) => t.userId === userId)
+      const users = getUsers();
+      const filtered = logs
+        .filter((t) => t.userId === userId || String(t.userId) === String(userId))
+        .map((t) => {
+          const user = users.find((u) => u.id === t.userId) || { clientCompany: 'N/A' };
+          return { ...t, clientCompany: t.clientCompany || user.clientCompany || 'N/A' };
+        })
         .sort((a, b) => new Date(b.date + 'T' + b.clockIn) - new Date(a.date + 'T' + a.clockIn));
+      localStorage.setItem('vt_cached_logs', JSON.stringify(filtered));
+      return filtered;
     } else {
       const response = await api.get('/timesheets/my-logs');
+      localStorage.setItem('vt_cached_logs', JSON.stringify(response.data));
       return response.data;
     }
+  },
+
+  syncOfflineQueue: async () => {
+    if (!navigator.onLine) return { status: 'offline', syncedCount: 0 };
+
+    const queue = getOfflineQueue();
+    if (queue.length === 0) return { status: 'idle', syncedCount: 0 };
+
+    if (localStorage.getItem('vt_syncing') === 'true') {
+      return { status: 'syncing', syncedCount: 0 };
+    }
+    localStorage.setItem('vt_syncing', 'true');
+
+    let syncedCount = 0;
+    const remainingQueue = [];
+
+    try {
+      for (const item of queue) {
+        try {
+          const clientElapsedMs = Date.now() - item.deviceTime;
+          if (item.action === 'CLOCK_IN') {
+            if (isMockMode()) {
+              const logs = getTimesheets();
+              const todayStr = new Date(item.deviceTime).toISOString().split('T')[0];
+              const timeStr = new Date(item.deviceTime).toTimeString().split(' ')[0];
+
+              const active = logs.find(t => t.userId === item.userId && t.clockOut === null);
+              if (active) throw new Error('Active shift already exists');
+
+
+              logs.push({
+                id: `log-${Date.now()}`,
+                userId: item.userId,
+                date: todayStr,
+                clockIn: timeStr,
+                clockOut: null,
+                hours: 0,
+                notes: '',
+                clientCompany: item.clientCompany || 'N/A',
+                status: 'ACTIVE',
+                browser: item.deviceMetadata?.browser,
+                operatingSystem: item.deviceMetadata?.operatingSystem,
+                deviceType: item.deviceMetadata?.deviceType,
+                screenResolution: item.deviceMetadata?.screenResolution
+              });
+              saveTimesheets(logs);
+            } else {
+              await api.post('/timesheets/clock-in', {
+                clientElapsedMs,
+                browser: item.deviceMetadata?.browser,
+                operatingSystem: item.deviceMetadata?.operatingSystem,
+                deviceType: item.deviceMetadata?.deviceType,
+                screenResolution: item.deviceMetadata?.screenResolution
+              });
+            }
+          } else if (item.action === 'CLOCK_OUT') {
+            if (isMockMode()) {
+              const logs = getTimesheets();
+              const active = logs.find(t => t.userId === item.userId && t.clockOut === null);
+              if (!active) throw new Error('No active shift found');
+
+              const todayStr = new Date(item.deviceTime).toISOString().split('T')[0];
+              const timeStr = new Date(item.deviceTime).toTimeString().split(' ')[0];
+
+              active.clockOut = timeStr;
+              active.notes = item.notes || '';
+              active.status = 'COMPLETED';
+
+              const inTime = new Date(`${active.date}T${active.clockIn}`);
+              const outTime = new Date(`${todayStr}T${timeStr}`);
+              let diffHours = (outTime - inTime) / 3600000;
+              if (diffHours < 0) diffHours = 0;
+              active.hours = parseFloat(diffHours.toFixed(2));
+              saveTimesheets(logs);
+            } else {
+              await api.post('/timesheets/clock-out', {
+                notes: item.notes,
+                clientElapsedMs,
+                browser: item.deviceMetadata?.browser,
+                operatingSystem: item.deviceMetadata?.operatingSystem,
+                deviceType: item.deviceMetadata?.deviceType,
+                screenResolution: item.deviceMetadata?.screenResolution
+              });
+            }
+          }
+          syncedCount++;
+        } catch (err) {
+          console.error("Error syncing item", item, err);
+          if (!err.response || err.response.status >= 500) {
+            remainingQueue.push(item);
+            const currentIndex = queue.indexOf(item);
+            remainingQueue.push(...queue.slice(currentIndex + 1));
+            break;
+          }
+        }
+      }
+      saveOfflineQueue(remainingQueue);
+      triggerSync();
+    } finally {
+      localStorage.removeItem('vt_syncing');
+    }
+
+    return { status: remainingQueue.length > 0 ? 'partial' : 'success', syncedCount };
   },
 
   // --- ADMIN TIMESHEET & MANAGEMENT FUNCTIONS ---
@@ -171,7 +514,7 @@ export const timesheetService = {
       if (storedCompanies) {
         try {
           clientCount = JSON.parse(storedCompanies).length;
-        } catch (e) {
+        } catch {
           // ignore
         }
       }
@@ -240,38 +583,22 @@ export const timesheetService = {
         hours = parseFloat(diffHours.toFixed(2));
       }
 
-      const existingIndex = logs.findIndex((t) => t.userId === logEntry.userId && t.date === logEntry.date);
-      if (existingIndex !== -1) {
-        const existing = logs[existingIndex];
-        const newHours = (existing.hours || 0) + (hours || 0);
-        existing.hours = parseFloat(newHours.toFixed(2));
-        existing.clockIn = logEntry.clockIn;
-        existing.clockOut = logEntry.clockOut;
-        existing.notes = logEntry.notes;
-        existing.location = logEntry.location || 'Office (Manual)';
-        existing.status = logEntry.clockOut ? 'COMPLETED' : 'ACTIVE';
-        saveTimesheets(logs);
-        triggerSync();
-        return { message: 'Manual entry created', id: existing.id };
-      } else {
-        const newLog = {
-          id: `log-${Date.now()}`,
-          userId: logEntry.userId,
-          date: logEntry.date,
-          clockIn: logEntry.clockIn,
-          clockOut: logEntry.clockOut,
-          hours: hours,
-          notes: logEntry.notes,
-          location: logEntry.location || 'Office (Manual)',
-          clientCompany: logEntry.clientCompany || (employee ? employee.clientCompany : 'N/A'),
-          status: logEntry.clockOut ? 'COMPLETED' : 'ACTIVE'
-        };
+      const newLog = {
+        id: `log-${Date.now()}`,
+        userId: logEntry.userId,
+        date: logEntry.date,
+        clockIn: logEntry.clockIn,
+        clockOut: logEntry.clockOut,
+        hours: hours,
+        notes: logEntry.notes,
+        clientCompany: logEntry.clientCompany || (employee ? employee.clientCompany : 'N/A'),
+        status: logEntry.clockOut ? 'COMPLETED' : 'ACTIVE'
+      };
 
-        logs.push(newLog);
-        saveTimesheets(logs);
-        triggerSync();
-        return { message: 'Manual entry created', id: newLog.id };
-      }
+      logs.push(newLog);
+      saveTimesheets(logs);
+      triggerSync();
+      return { message: 'Manual entry created', id: newLog.id };
     } else {
       const response = await api.post('/admin/timesheets', logEntry);
       triggerSync();
@@ -429,15 +756,14 @@ export const timesheetService = {
         filtered = filtered.filter((t) => t.date <= filters.endDate);
       }
 
-      let csv = 'Candidate Name,Client Company,Hourly Rate,Currency,Date,Clock In,Clock Out,Total Hours,Location Captured,Work Notes\n';
+      let csv = 'Candidate Name,Client Company,Hourly Rate,Currency,Date,Clock In,Clock Out,Total Hours,Work Notes\n';
       filtered.forEach((log) => {
         const user = users.find((u) => u.id === log.userId || String(u.id) === String(log.userId)) || { name: 'Unknown', rate: 0 };
         const cleanNotes = log.notes ? `"${log.notes.replace(/"/g, '""')}"` : '""';
-        const cleanLocation = log.location ? `"${log.location.replace(/"/g, '""')}"` : '""';
         const hoursStr = log.clockOut ? log.hours : 'Active Clock';
         const clockOutTime = log.clockOut || 'N/A';
         const currency = getCandidateCurrency(user.id || log.userId);
-        csv += `"${user.name}","${log.clientCompany || 'N/A'}",${user.rate || 0},"${currency}","${log.date}","${log.clockIn}","${clockOutTime}",${hoursStr},${cleanLocation},${cleanNotes}\n`;
+        csv += `"${user.name}","${log.clientCompany || 'N/A'}",${user.rate || 0},"${currency}","${log.date}","${log.clockIn}","${clockOutTime}",${hoursStr},${cleanNotes}\n`;
       });
 
       triggerFileDownload(csv, `Vergil_Tempo_Timesheets_${new Date().toISOString().slice(0, 10)}.csv`);

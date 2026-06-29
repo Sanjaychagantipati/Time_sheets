@@ -2,7 +2,6 @@
 
 export function formatDateFriendly(dateStr) {
   if (!dateStr) return '';
-  const date = new Date(dateStr);
   const parts = dateStr.split('-');
   const d = new Date(parts[0], parts[1] - 1, parts[2]);
   const options = { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' };

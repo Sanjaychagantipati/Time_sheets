@@ -18,6 +18,7 @@ import java.math.BigDecimal;
 import java.text.NumberFormat;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.TextStyle;
 import java.util.List;
@@ -46,7 +47,7 @@ public class ReportServiceImpl implements ReportService {
                 queryUserId, queryClient, queryStartDate, queryEndDate);
 
         PrintWriter pw = new PrintWriter(writer);
-        pw.println("Candidate Name,Client Company,Hourly Rate ($),Date,Clock In,Clock Out,Total Hours,Location Captured,Work Notes");
+        pw.println("Candidate Name,Client Company,Hourly Rate ($),Date,Clock In,Clock Out,Total Hours,Work Notes");
 
         for (Timesheet t : timesheets) {
             if (t.getClockOut() == null) {
@@ -59,11 +60,10 @@ public class ReportServiceImpl implements ReportService {
             String clockIn = csvQuote(t.getClockIn().toString());
             String clockOut = t.getClockOut() != null ? csvQuote(t.getClockOut().toString()) : csvQuote("N/A");
             String hours = t.getClockOut() != null ? t.getHours().toString() : "Active Clock";
-            String location = csvQuote(t.getLocation());
             String notes = csvQuote(t.getNotes());
 
-            pw.printf("%s,%s,%s,%s,%s,%s,%s,%s,%s\n",
-                    name, clientName, rate, date, clockIn, clockOut, hours, location, notes);
+            pw.printf("%s,%s,%s,%s,%s,%s,%s,%s\n",
+                    name, clientName, rate, date, clockIn, clockOut, hours, notes);
         }
         pw.flush();
     }
@@ -104,17 +104,16 @@ public class ReportServiceImpl implements ReportService {
         pw.printf("Placed Client Company,%s\n", candidate.getClient() != null ? csvQuote(candidate.getClient().getName()) : csvQuote("N/A"));
         pw.printf("Payroll Hourly Rate,$%s\n\n", candidate.getHourlyRate().setScale(2, BigDecimal.ROUND_HALF_UP).toString());
 
-        pw.println("Date,Clock In,Clock Out,Total Hours,Location Captured,Work Notes");
+        pw.println("Date,Clock In,Clock Out,Total Hours,Work Notes");
 
         for (Timesheet log : logs) {
             String date = csvQuote(log.getDate().toString());
             String clockIn = csvQuote(log.getClockIn().toString());
             String clockOut = csvQuote(log.getClockOut().toString());
             String hours = log.getHours().setScale(2, BigDecimal.ROUND_HALF_UP).toString();
-            String location = csvQuote(log.getLocation());
             String notes = csvQuote(log.getNotes());
 
-            pw.printf("%s,%s,%s,%s,%s,%s\n", date, clockIn, clockOut, hours, location, notes);
+            pw.printf("%s,%s,%s,%s,%s\n", date, clockIn, clockOut, hours, notes);
         }
 
         pw.println();
@@ -150,10 +149,10 @@ public class ReportServiceImpl implements ReportService {
             throw new ResourceNotFoundException("No logged hours found for this candidate in the selected month");
         }
 
-        // Map logs by date for fast lookup
-        java.util.Map<LocalDate, Timesheet> logMap = new java.util.HashMap<>();
+        // Group logs by date
+        java.util.Map<LocalDate, java.util.List<Timesheet>> logMap = new java.util.HashMap<>();
         for (Timesheet log : logs) {
-            logMap.put(log.getDate(), log);
+            logMap.computeIfAbsent(log.getDate(), k -> new java.util.ArrayList<>()).add(log);
         }
 
         java.util.List<AttendanceRowDTO> rows = new java.util.ArrayList<>();
@@ -191,11 +190,31 @@ public class ReportServiceImpl implements ReportService {
                             .clientCompany("-")
                             .status("");
                 } else {
-                    Timesheet log = logMap.get(date);
-                    if (log != null) {
-                        String logInStr = log.getClockIn() != null ? log.getClockIn().format(DateTimeFormatter.ofPattern("HH:mm")) : "-";
-                        String logOutStr = log.getClockOut() != null ? log.getClockOut().format(DateTimeFormatter.ofPattern("HH:mm")) : "-";
-                        String hoursStr = log.getHours() != null ? log.getHours().setScale(2, BigDecimal.ROUND_HALF_UP).toString() : "0.00";
+                    java.util.List<Timesheet> dayLogs = logMap.get(date);
+                    if (dayLogs != null && !dayLogs.isEmpty()) {
+                        LocalTime earliestClockIn = null;
+                        LocalTime latestClockOut = null;
+                        BigDecimal dayTotalHours = BigDecimal.ZERO;
+
+                        for (Timesheet log : dayLogs) {
+                            if (log.getClockIn() != null) {
+                                if (earliestClockIn == null || log.getClockIn().isBefore(earliestClockIn)) {
+                                    earliestClockIn = log.getClockIn();
+                                }
+                            }
+                            if (log.getClockOut() != null) {
+                                if (latestClockOut == null || log.getClockOut().isAfter(latestClockOut)) {
+                                    latestClockOut = log.getClockOut();
+                                }
+                                if (log.getHours() != null) {
+                                    dayTotalHours = dayTotalHours.add(log.getHours());
+                                }
+                            }
+                        }
+
+                        String logInStr = earliestClockIn != null ? earliestClockIn.format(DateTimeFormatter.ofPattern("HH:mm")) : "-";
+                        String logOutStr = latestClockOut != null ? latestClockOut.format(DateTimeFormatter.ofPattern("HH:mm")) : "-";
+                        String hoursStr = dayTotalHours.setScale(2, java.math.RoundingMode.HALF_UP).toString();
 
                         rowBuilder
                                 .logIn(logInStr)

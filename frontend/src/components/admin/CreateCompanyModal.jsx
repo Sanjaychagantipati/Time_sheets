@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Briefcase, X, Trash2, Search } from 'lucide-react';
 import { useClientCompanies } from '../../context/ClientCompanyContext';
 

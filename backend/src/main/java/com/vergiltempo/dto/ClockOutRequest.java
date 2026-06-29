@@ -8,4 +8,9 @@ import lombok.*;
 @Builder
 public class ClockOutRequest {
     private String notes;
+    private String browser;
+    private String operatingSystem;
+    private String deviceType;
+    private String screenResolution;
+    private Long clientElapsedMs;
 }

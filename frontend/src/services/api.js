@@ -27,7 +27,7 @@ api.interceptors.request.use(
         try {
           const parsed = JSON.parse(storedUser);
           token = parsed.token;
-        } catch (e) {
+        } catch {
           // ignore
         }
       }

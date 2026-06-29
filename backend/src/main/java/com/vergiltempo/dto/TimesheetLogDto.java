@@ -16,9 +16,14 @@ public class TimesheetLogDto {
     private LocalTime clockIn;
     private LocalTime clockOut;
     private BigDecimal hours;
-    private String location;
     private String notes;
     private String clientCompany;
     private String status;
+    private String browser;
+    private String operatingSystem;
+    private String deviceType;
+    private String screenResolution;
+    private String ipAddress;
+    private String userAgent;
 }
 

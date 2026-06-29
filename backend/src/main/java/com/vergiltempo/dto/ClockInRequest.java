@@ -1,6 +1,5 @@
 package com.vergiltempo.dto;
 
-import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 
 @Data
@@ -8,6 +7,10 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 public class ClockInRequest {
-    @NotBlank(message = "Location is required")
-    private String location;
+    private String timezone;
+    private String browser;
+    private String operatingSystem;
+    private String deviceType;
+    private String screenResolution;
+    private Long clientElapsedMs;
 }

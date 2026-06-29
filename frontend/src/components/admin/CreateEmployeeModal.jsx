@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { UserPlus, X, Eye, EyeOff } from 'lucide-react';
 import { timesheetService } from '../../services/timesheetService';
 import { useClientCompanies } from '../../context/ClientCompanyContext';

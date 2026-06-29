@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { CalendarPlus, Edit3, X } from 'lucide-react';
 import { timesheetService } from '../../services/timesheetService';
 import { useClientCompanies } from '../../context/ClientCompanyContext';
@@ -13,7 +13,6 @@ export default function EditLogModal({ isOpen, logId, onClose, onSuccess, setToa
   const [clockOut, setClockOut] = useState('17:00:00');
   const [notes, setNotes] = useState('');
   const [clientCompany, setClientCompany] = useState(companies[0] || '');
-  const [location, setLocation] = useState('HQ Office (Manual)');
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -43,7 +42,6 @@ export default function EditLogModal({ isOpen, logId, onClose, onSuccess, setToa
       setClockOut('17:00:00');
       setNotes('');
       setClientCompany(companies[0] || '');
-      setLocation('HQ Office (Manual)');
       return;
     }
 
@@ -59,7 +57,6 @@ export default function EditLogModal({ isOpen, logId, onClose, onSuccess, setToa
           setClockOut(log.clockOut || '');
           setNotes(log.notes || '');
           setClientCompany(log.clientCompany || companies[0] || '');
-          setLocation(log.location || '');
         }
       } catch (err) {
         console.error(err);
@@ -95,7 +92,6 @@ export default function EditLogModal({ isOpen, logId, onClose, onSuccess, setToa
         clockIn,
         clockOut: clockOut || null,
         notes,
-        location,
         clientCompany: trimmedClientCompany,
       };
 
@@ -222,33 +218,19 @@ export default function EditLogModal({ isOpen, logId, onClose, onSuccess, setToa
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1.5 relative">
-                  <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Client Company</label>
-                  <SearchableDropdown
-                    id="edit-log-client"
-                    placeholder="Select Company..."
-                    items={companies.map((c) => ({
-                      value: c,
-                      label: c
-                    }))}
-                    selectedValue={clientCompany}
-                    onSelect={(val) => setClientCompany(val)}
-                    direction="up"
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label htmlFor="edit-log-location" className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Location Label</label>
-                  <input
-                    id="edit-log-location"
-                    name="location"
-                    type="text"
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    placeholder="e.g. Remote (Simulated)"
-                    className="bg-[#1A1A1A] border border-[#2A2A2A] text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#FF7A00] focus:ring-1 focus:ring-[#FF7A00] transition"
-                  />
-                </div>
+              <div className="flex flex-col gap-1.5 relative">
+                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Client Company</label>
+                <SearchableDropdown
+                  id="edit-log-client"
+                  placeholder="Select Company..."
+                  items={companies.map((c) => ({
+                    value: c,
+                    label: c
+                  }))}
+                  selectedValue={clientCompany}
+                  onSelect={(val) => setClientCompany(val)}
+                  direction="up"
+                />
               </div>
 
             </div>

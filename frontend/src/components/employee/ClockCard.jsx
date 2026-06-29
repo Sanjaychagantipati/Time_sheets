@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Play, Square, MapPin, AlertTriangle } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Play, Square, AlertTriangle } from 'lucide-react';
 import { timesheetService } from '../../services/timesheetService';
 import { useAuth } from '../../context/AuthContext';
 
@@ -10,10 +10,9 @@ export default function ClockCard({ onShiftLogged, setToast }) {
   const [timeStr, setTimeStr] = useState('00:00:00');
   const [dateStr, setDateStr] = useState('');
   const [notes, setNotes] = useState('');
-  const [locationStr, setLocationStr] = useState('');
-  const [detecting, setDetecting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   const checkStatus = useCallback(async () => {
     if (!user) return;
@@ -22,21 +21,57 @@ export default function ClockCard({ onShiftLogged, setToast }) {
       if (res.hasActive) {
         setIsClockedIn(true);
         setActiveLog(res.log);
-        setLocationStr(res.log.location);
       } else {
         setIsClockedIn(false);
         setActiveLog(null);
-        setLocationStr('');
       }
     } catch (err) {
       console.error("Error checking active session", err);
     }
   }, [user]);
 
+  const handleOnlineSync = useCallback(async () => {
+    setIsOnline(true);
+    try {
+      const res = await timesheetService.syncOfflineQueue();
+      if (res && res.syncedCount > 0) {
+        setToast({ message: `Successfully synced ${res.syncedCount} offline record(s) with server!`, type: 'success' });
+        await checkStatus();
+        if (onShiftLogged) onShiftLogged();
+      }
+    } catch (e) {
+      console.error("Auto-sync error", e);
+    }
+  }, [checkStatus, onShiftLogged, setToast]);
+
   // Sync active status on mount and when user session changes
   useEffect(() => {
     checkStatus();
   }, [checkStatus]);
+
+  // Register online/offline event listeners
+  useEffect(() => {
+    const goOnline = () => {
+      handleOnlineSync();
+    };
+    const goOffline = () => {
+      setIsOnline(false);
+      setToast({ message: 'Internet connection lost. Switched to offline mode.', type: 'warning' });
+    };
+
+    window.addEventListener('online', goOnline);
+    window.addEventListener('offline', goOffline);
+
+    // Initial check on mount: sync if online
+    if (navigator.onLine) {
+      handleOnlineSync();
+    }
+
+    return () => {
+      window.removeEventListener('online', goOnline);
+      window.removeEventListener('offline', goOffline);
+    };
+  }, [handleOnlineSync, setToast]);
 
   // Update Ticker / Calendar text
   useEffect(() => {
@@ -89,43 +124,15 @@ export default function ClockCard({ onShiftLogged, setToast }) {
   }, [isClockedIn, activeLog]);
 
   const handleClockIn = async () => {
-    setDetecting(true);
-    let coordsText;
-    const mockAddresses = [
-      'HQ Boston, MA',
-      'NYC Branch Office',
-      'Remote - Co-working Space',
-      'Home Office (Virtual VPN)',
-      'Seattle Engineering Hub',
-      'London Operations Branch'
-    ];
-    const randomMockAddress = mockAddresses[Math.floor(Math.random() * mockAddresses.length)];
-
-    if ("geolocation" in navigator) {
-      try {
-        const pos = await new Promise((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
-        });
-        coordsText = `Lat: ${pos.coords.latitude.toFixed(4)}, Lng: ${pos.coords.longitude.toFixed(4)} (${randomMockAddress})`;
-      } catch (err) {
-        const lat = (42.3601 + (Math.random() - 0.5) * 0.05).toFixed(4);
-        const lng = (-71.0589 + (Math.random() - 0.5) * 0.05).toFixed(4);
-        coordsText = `Lat: ${lat}, Lng: ${lng} (${randomMockAddress} - Simulated)`;
-      }
-    } else {
-      coordsText = `Simulated: ${randomMockAddress}`;
-    }
-
     try {
       setSubmitting(true);
-      const res = await timesheetService.clockIn(user.id, coordsText);
-      setDetecting(false);
+      await timesheetService.clockIn(user.id);
       setToast({ message: 'Successfully Clocked In!', type: 'success' });
       await checkStatus();
     } catch (err) {
       console.error(err);
-      setDetecting(false);
-      setToast({ message: 'Failed to clock in.', type: 'error' });
+      const errMsg = err.response?.data?.message || 'Failed to clock in.';
+      setToast({ message: errMsg, type: 'error' });
     } finally {
       setSubmitting(false);
     }
@@ -142,11 +149,13 @@ export default function ClockCard({ onShiftLogged, setToast }) {
       if (onShiftLogged) onShiftLogged();
     } catch (err) {
       console.error(err);
-      setToast({ message: 'Failed to clock out.', type: 'error' });
+      const errMsg = err.response?.data?.message || 'Failed to clock out.';
+      setToast({ message: errMsg, type: 'error' });
     } finally {
       setSubmitting(false);
     }
   };
+
 
   return (
     <div className="bg-[#111111] border border-[#2A2A2A] p-10 flex flex-col items-center justify-center rounded-2xl relative overflow-hidden text-center shadow-2xl">
@@ -162,6 +171,11 @@ export default function ClockCard({ onShiftLogged, setToast }) {
         <span className={`w-2.5 h-2.5 rounded-full ${isClockedIn ? 'bg-[#FF7A00] animate-pulse shadow-[0_0_10px_#FF7A00]' : 'bg-gray-600'}`}></span>
         <span className="text-[10px] font-bold text-white uppercase tracking-wider">
           {isClockedIn ? 'Clocked In' : 'Clocked Out'}
+        </span>
+        <span className="text-gray-600">|</span>
+        <span className={`w-2.5 h-2.5 rounded-full ${isOnline ? 'bg-green-500 shadow-[0_0_8px_#22c55e]' : 'bg-orange-500 animate-pulse'}`}></span>
+        <span className="text-[10px] font-bold text-white uppercase tracking-wider">
+          {isOnline ? 'Online' : 'Offline'}
         </span>
       </div>
 
@@ -181,20 +195,12 @@ export default function ClockCard({ onShiftLogged, setToast }) {
               rows={2}
               maxLength={250}
             />
-            {locationStr && (
-              <div className="flex items-center justify-center gap-1.5 p-2 rounded-xl bg-orange-500/5 border border-orange-500/10 text-[#FF7A00] text-xs mt-2">
-                <MapPin size={12} />
-                <span className="truncate max-w-[340px]" title={locationStr}>
-                  {locationStr}
-                </span>
-              </div>
-            )}
           </div>
         )}
 
         <button
           onClick={isClockedIn ? () => setShowConfirm(true) : handleClockIn}
-          disabled={detecting || submitting}
+          disabled={submitting}
           className={`w-full py-4 text-base font-bold rounded-xl flex items-center justify-center gap-2 transition duration-300 cursor-pointer disabled:cursor-not-allowed ${
             isClockedIn
               ? 'bg-[#2A2A2A] hover:bg-[#333333] text-white border border-[#3A3A3A] hover:shadow-[0_0_15px_rgba(255,122,0,0.1)]'
@@ -203,11 +209,9 @@ export default function ClockCard({ onShiftLogged, setToast }) {
         >
           {isClockedIn ? <Square size={16} /> : <Play size={16} />}
           <span>
-            {detecting 
-              ? 'Detecting Location...' 
-              : submitting 
-                ? (isClockedIn ? 'Clocking Out...' : 'Clocking In...') 
-                : (isClockedIn ? 'Clock Out' : 'Clock In')}
+            {submitting 
+              ? (isClockedIn ? 'Clocking Out...' : 'Clocking In...') 
+              : (isClockedIn ? 'Clock Out' : 'Clock In')}
           </span>
         </button>
       </div>

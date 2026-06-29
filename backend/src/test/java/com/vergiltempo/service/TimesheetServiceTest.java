@@ -7,6 +7,7 @@ import com.vergiltempo.entity.Timesheet;
 import com.vergiltempo.entity.User;
 import com.vergiltempo.repository.TimesheetRepository;
 import com.vergiltempo.repository.UserRepository;
+import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -26,6 +27,7 @@ public class TimesheetServiceTest {
 
     private UserRepository userRepository;
     private TimesheetRepository timesheetRepository;
+    private HttpServletRequest httpServletRequest;
     private TimesheetService timesheetService;
 
     private User employee;
@@ -35,7 +37,8 @@ public class TimesheetServiceTest {
     public void setUp() {
         userRepository = Mockito.mock(UserRepository.class);
         timesheetRepository = Mockito.mock(TimesheetRepository.class);
-        timesheetService = new TimesheetServiceImpl(userRepository, timesheetRepository);
+        httpServletRequest = Mockito.mock(HttpServletRequest.class);
+        timesheetService = new TimesheetServiceImpl(userRepository, timesheetRepository, httpServletRequest);
 
         client = Client.builder().id(1).name("Microsoft").code("MSFT").active(true).build();
         employee = User.builder()
@@ -66,7 +69,6 @@ public class TimesheetServiceTest {
                 .client(client)
                 .date(LocalDate.now())
                 .clockIn(LocalTime.of(9, 0))
-                .location("HQ Boston")
                 .build();
 
         when(userRepository.findByUsername("john")).thenReturn(Optional.of(employee));
@@ -77,7 +79,6 @@ public class TimesheetServiceTest {
         assertTrue(response.isHasActive());
         assertNotNull(response.getLog());
         assertEquals("ts-123", response.getLog().getId());
-        assertEquals("HQ Boston", response.getLog().getLocation());
     }
 
     @Test
@@ -90,14 +91,13 @@ public class TimesheetServiceTest {
             return ts;
         });
 
-        ClockInRequest request = new ClockInRequest("HQ Boston");
+        ClockInRequest request = new ClockInRequest();
         ClockInResponse response = timesheetService.clockIn("john", request);
 
         assertNotNull(response);
         assertEquals("Clocked in successfully", response.getMessage());
         assertNotNull(response.getLog());
         assertEquals("ts-new", response.getLog().getId());
-        assertEquals("HQ Boston", response.getLog().getLocation());
     }
 
     @Test
@@ -106,7 +106,7 @@ public class TimesheetServiceTest {
         when(userRepository.findByUsername("john")).thenReturn(Optional.of(employee));
         when(timesheetRepository.findByUserAndClockOutIsNull(employee)).thenReturn(Optional.of(active));
 
-        ClockInRequest request = new ClockInRequest("HQ Boston");
+        ClockInRequest request = new ClockInRequest();
         assertThrows(com.vergiltempo.exception.ActiveShiftExistsException.class, () -> timesheetService.clockIn("john", request));
     }
 
@@ -118,14 +118,13 @@ public class TimesheetServiceTest {
                 .client(client)
                 .date(LocalDate.now())
                 .clockIn(LocalTime.now().minusHours(8).truncatedTo(java.time.temporal.ChronoUnit.SECONDS))
-                .location("HQ Boston")
                 .build();
 
         when(userRepository.findByUsername("john")).thenReturn(Optional.of(employee));
         when(timesheetRepository.findByUserAndClockOutIsNull(employee)).thenReturn(Optional.of(active));
         when(timesheetRepository.save(any(Timesheet.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        ClockOutRequest request = new ClockOutRequest("Worked on layouts");
+        ClockOutRequest request = ClockOutRequest.builder().notes("Worked on layouts").build();
         ClockOutResponse response = timesheetService.clockOut("john", request);
 
         assertNotNull(response);
@@ -142,7 +141,7 @@ public class TimesheetServiceTest {
         when(userRepository.findByUsername("john")).thenReturn(Optional.of(employee));
         when(timesheetRepository.findByUserAndClockOutIsNull(employee)).thenReturn(Optional.empty());
 
-        ClockOutRequest request = new ClockOutRequest("Worked on layouts");
+        ClockOutRequest request = ClockOutRequest.builder().notes("Worked on layouts").build();
         assertThrows(com.vergiltempo.exception.NoActiveShiftException.class, () -> timesheetService.clockOut("john", request));
     }
 
@@ -167,6 +166,25 @@ public class TimesheetServiceTest {
         assertEquals(1, logs.size());
         assertEquals("ts-123", logs.get(0).getId());
         assertEquals("COMPLETED", logs.get(0).getStatus());
+    }
+
+    @Test
+    public void testClockInMultipleTimesOnSameDayAllowed() {
+        when(userRepository.findByUsername("john")).thenReturn(Optional.of(employee));
+        when(timesheetRepository.findByUserAndClockOutIsNull(employee)).thenReturn(Optional.empty());
+
+        when(timesheetRepository.save(any(Timesheet.class))).thenAnswer(invocation -> {
+            Timesheet ts = invocation.getArgument(0);
+            ts.setId("ts-new-multiple");
+            return ts;
+        });
+
+        ClockInRequest request = new ClockInRequest();
+        ClockInResponse response = timesheetService.clockIn("john", request);
+
+        assertNotNull(response);
+        assertEquals("Clocked in successfully", response.getMessage());
+        assertEquals("ts-new-multiple", response.getLog().getId());
     }
 }
 

@@ -22,7 +22,6 @@ public class AdminTimesheetRequest {
     private LocalTime clockOut; // optional
     
     private String notes;
-    private String location;
     
     @NotBlank(message = "Client company is required")
     private String clientCompany;

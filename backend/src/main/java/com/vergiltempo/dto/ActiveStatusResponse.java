@@ -20,6 +20,5 @@ public class ActiveStatusResponse {
         private String id;
         private LocalDate date;
         private LocalTime clockIn;
-        private String location;
     }
 }

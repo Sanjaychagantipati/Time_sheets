@@ -1,4 +1,3 @@
-import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Clock, LayoutDashboard, LogOut } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
@@ -87,9 +86,9 @@ export default function MainLayout({ children }) {
         </div>
       </footer>
 
-      {/* Mobile Bottom Navigation Bar (Visible only on mobile devices) */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#111111]/90 backdrop-blur-lg border-t border-[#FF7A00]/20 py-2.5 px-6 flex items-center justify-around z-50">
-        {user.role.toLowerCase() === 'admin' ? (
+      {/* Mobile Bottom Navigation Bar (Visible only on mobile devices, admin only) */}
+      {user.role.toLowerCase() === 'admin' && (
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#111111]/90 backdrop-blur-lg border-t border-[#FF7A00]/20 py-2.5 px-6 flex items-center justify-around z-50">
           <NavLink
             to="/admin"
             className={({ isActive }) =>
@@ -101,27 +100,15 @@ export default function MainLayout({ children }) {
             <LayoutDashboard size={18} />
             <span className="mt-1">Overview</span>
           </NavLink>
-        ) : (
-          <NavLink
-            to="/employee"
-            className={({ isActive }) =>
-              `flex flex-col items-center text-[10px] font-medium transition ${
-                isActive ? 'text-[#FF7A00]' : 'text-gray-400'
-              }`
-            }
+          <button
+            onClick={handleLogout}
+            className="flex flex-col items-center text-[10px] text-gray-400 font-medium"
           >
-            <Clock size={18} />
-            <span className="mt-1">Clock</span>
-          </NavLink>
-        )}
-        <button
-          onClick={handleLogout}
-          className="flex flex-col items-center text-[10px] text-gray-400 font-medium"
-        >
-          <LogOut size={18} />
-          <span className="mt-1">Logout</span>
-        </button>
-      </nav>
+            <LogOut size={18} />
+            <span className="mt-1">Logout</span>
+          </button>
+        </nav>
+      )}
     </div>
   );
 }

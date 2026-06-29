@@ -49,7 +49,6 @@ public class TimesheetControllerTest {
                         .id("ts-123")
                         .date(LocalDate.of(2026, 6, 12))
                         .clockIn(LocalTime.of(9, 0))
-                        .location("HQ Boston")
                         .build())
                 .build();
 
@@ -61,8 +60,7 @@ public class TimesheetControllerTest {
                 .principal(principal))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.hasActive").value(true))
-                .andExpect(jsonPath("$.log.id").value("ts-123"))
-                .andExpect(jsonPath("$.log.location").value("HQ Boston"));
+                .andExpect(jsonPath("$.log.id").value("ts-123"));
     }
 
     @Test
@@ -74,13 +72,12 @@ public class TimesheetControllerTest {
                         .userId("emp-123")
                         .date(LocalDate.of(2026, 6, 12))
                         .clockIn(LocalTime.of(9, 0))
-                        .location("HQ Boston")
                         .clientCompany("Microsoft")
                         .build())
                 .build();
 
         Principal principal = () -> "john";
-        ClockInRequest request = new ClockInRequest("HQ Boston");
+        ClockInRequest request = new ClockInRequest();
 
         when(timesheetService.clockIn(eq("john"), any(ClockInRequest.class))).thenReturn(response);
 
@@ -96,7 +93,7 @@ public class TimesheetControllerTest {
     @Test
     public void testClockInAlreadyClockedIn() throws Exception {
         Principal principal = () -> "john";
-        ClockInRequest request = new ClockInRequest("HQ Boston");
+        ClockInRequest request = new ClockInRequest();
 
         when(timesheetService.clockIn(eq("john"), any(ClockInRequest.class)))
                 .thenThrow(new com.vergiltempo.exception.ActiveShiftExistsException("Active shift already exists"));
