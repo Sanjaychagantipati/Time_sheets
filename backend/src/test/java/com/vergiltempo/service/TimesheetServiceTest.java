@@ -1,6 +1,7 @@
 package com.vergiltempo.service;
 
 import com.vergiltempo.dto.*;
+import com.vergiltempo.entity.AttendanceSession;
 import com.vergiltempo.entity.Client;
 import com.vergiltempo.entity.Role;
 import com.vergiltempo.entity.Timesheet;
@@ -119,6 +120,12 @@ public class TimesheetServiceTest {
                 .date(LocalDate.now())
                 .clockIn(LocalTime.now().minusHours(8).truncatedTo(java.time.temporal.ChronoUnit.SECONDS))
                 .build();
+        AttendanceSession session = AttendanceSession.builder()
+                .timesheet(active)
+                .clockIn(active.getClockIn())
+                .clockOut(null)
+                .build();
+        active.getSessions().add(session);
 
         when(userRepository.findByUsername("john")).thenReturn(Optional.of(employee));
         when(timesheetRepository.findByUserAndClockOutIsNull(employee)).thenReturn(Optional.of(active));
@@ -170,21 +177,39 @@ public class TimesheetServiceTest {
 
     @Test
     public void testClockInMultipleTimesOnSameDayAllowed() {
+        // Set up a completed timesheet for today
+        Timesheet completedToday = Timesheet.builder()
+                .id("ts-completed-today")
+                .user(employee)
+                .client(client)
+                .date(LocalDate.now())
+                .clockIn(LocalTime.of(9, 0))
+                .clockOut(LocalTime.of(12, 0))
+                .hours(BigDecimal.valueOf(3.0))
+                .build();
+        AttendanceSession session = AttendanceSession.builder()
+                .timesheet(completedToday)
+                .clockIn(completedToday.getClockIn())
+                .clockOut(completedToday.getClockOut())
+                .hours(completedToday.getHours())
+                .build();
+        completedToday.getSessions().add(session);
+
         when(userRepository.findByUsername("john")).thenReturn(Optional.of(employee));
         when(timesheetRepository.findByUserAndClockOutIsNull(employee)).thenReturn(Optional.empty());
+        when(timesheetRepository.findByUserAndDate(employee, LocalDate.now())).thenReturn(Optional.of(completedToday));
 
-        when(timesheetRepository.save(any(Timesheet.class))).thenAnswer(invocation -> {
-            Timesheet ts = invocation.getArgument(0);
-            ts.setId("ts-new-multiple");
-            return ts;
-        });
+        when(timesheetRepository.save(any(Timesheet.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         ClockInRequest request = new ClockInRequest();
         ClockInResponse response = timesheetService.clockIn("john", request);
 
         assertNotNull(response);
         assertEquals("Clocked in successfully", response.getMessage());
-        assertEquals("ts-new-multiple", response.getLog().getId());
+        assertEquals("ts-completed-today", response.getLog().getId());
+        // Verify that a new active session was added
+        assertEquals(2, completedToday.getSessions().size());
+        assertNull(completedToday.getSessions().get(1).getClockOut());
     }
 }
 

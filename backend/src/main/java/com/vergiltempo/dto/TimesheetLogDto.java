@@ -25,5 +25,17 @@ public class TimesheetLogDto {
     private String screenResolution;
     private String ipAddress;
     private String userAgent;
+    private java.util.List<SessionDto> sessions;
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class SessionDto {
+        private String id;
+        private LocalTime clockIn;
+        private LocalTime clockOut;
+        private BigDecimal hours;
+    }
 }
 

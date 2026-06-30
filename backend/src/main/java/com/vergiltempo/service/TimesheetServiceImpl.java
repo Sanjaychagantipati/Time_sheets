@@ -1,6 +1,7 @@
 package com.vergiltempo.service;
 
 import com.vergiltempo.dto.*;
+import com.vergiltempo.entity.AttendanceSession;
 import com.vergiltempo.entity.Timesheet;
 import com.vergiltempo.entity.User;
 import com.vergiltempo.repository.TimesheetRepository;
@@ -16,6 +17,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -60,12 +62,6 @@ public class TimesheetServiceImpl implements TimesheetService {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
 
-        // Validation: One active timesheet rule
-        boolean hasActive = timesheetRepository.findByUserAndClockOutIsNull(user).isPresent();
-        if (hasActive) {
-            throw new com.vergiltempo.exception.ActiveShiftExistsException("Active shift already exists");
-        }
-
         if (user.getClient() == null) {
             throw new IllegalStateException("User is not assigned to any client company");
         }
@@ -84,19 +80,71 @@ public class TimesheetServiceImpl implements TimesheetService {
             eventClockIn = eventLdt.toLocalTime().truncatedTo(ChronoUnit.SECONDS);
         }
 
+        // Check if there is an active timesheet for the user
+        // There is an active timesheet if findByUserAndClockOutIsNull(user) is present
+        Optional<Timesheet> activeTimesheetOpt = timesheetRepository.findByUserAndClockOutIsNull(user);
+        if (activeTimesheetOpt.isPresent()) {
+            throw new com.vergiltempo.exception.ActiveShiftExistsException("Active shift already exists");
+        }
 
-        Timesheet timesheet = Timesheet.builder()
-                .user(user)
-                .client(user.getClient())
-                .date(eventDate)
+        // Check if a timesheet for today already exists
+        Optional<Timesheet> existingTimesheetOpt = timesheetRepository.findByUserAndDate(user, eventDate);
+
+        Timesheet timesheet;
+        if (existingTimesheetOpt.isPresent()) {
+            timesheet = existingTimesheetOpt.get();
+
+            // Validate that we do not have an active session in today's timesheet (multiple active sessions check)
+            boolean hasActiveSession = timesheet.getSessions().stream()
+                    .anyMatch(s -> s.getClockOut() == null);
+            if (hasActiveSession) {
+                throw new com.vergiltempo.exception.ActiveShiftExistsException("Active shift already exists");
+            }
+
+            // Validate overlapping sessions
+            final LocalTime finalEventClockIn = eventClockIn;
+            boolean overlaps = timesheet.getSessions().stream().anyMatch(s -> {
+                if (s.getClockOut() == null) return false;
+                return !finalEventClockIn.isBefore(s.getClockIn()) && !finalEventClockIn.isAfter(s.getClockOut());
+            });
+            if (overlaps) {
+                throw new IllegalArgumentException("Clock in time overlaps with an existing session");
+            }
+
+            // Set timesheet clockOut to null because they are active again
+            timesheet.setClockOut(null);
+
+            // Update audit fields
+            if (request.getBrowser() != null) timesheet.setBrowser(request.getBrowser());
+            if (request.getOperatingSystem() != null) timesheet.setOperatingSystem(request.getOperatingSystem());
+            if (request.getDeviceType() != null) timesheet.setDeviceType(request.getDeviceType());
+            if (request.getScreenResolution() != null) timesheet.setScreenResolution(request.getScreenResolution());
+            timesheet.setIpAddress(getClientIp());
+            timesheet.setUserAgent(getUserAgent());
+        } else {
+            timesheet = Timesheet.builder()
+                    .user(user)
+                    .client(user.getClient())
+                    .date(eventDate)
+                    .clockIn(eventClockIn)
+                    .clockOut(null)
+                    .browser(request.getBrowser())
+                    .operatingSystem(request.getOperatingSystem())
+                    .deviceType(request.getDeviceType())
+                    .screenResolution(request.getScreenResolution())
+                    .ipAddress(getClientIp())
+                    .userAgent(getUserAgent())
+                    .build();
+        }
+
+        // Create new Attendance Session
+        AttendanceSession session = AttendanceSession.builder()
+                .timesheet(timesheet)
                 .clockIn(eventClockIn)
-                .browser(request.getBrowser())
-                .operatingSystem(request.getOperatingSystem())
-                .deviceType(request.getDeviceType())
-                .screenResolution(request.getScreenResolution())
-                .ipAddress(getClientIp())
-                .userAgent(getUserAgent())
+                .clockOut(null)
                 .build();
+
+        timesheet.getSessions().add(session);
 
         Timesheet saved = timesheetRepository.save(timesheet);
 
@@ -129,8 +177,14 @@ public class TimesheetServiceImpl implements TimesheetService {
             clockOutTime = eventLdt.toLocalTime().truncatedTo(ChronoUnit.SECONDS);
         }
 
+        // Find the active AttendanceSession in the timesheet
+        AttendanceSession activeSession = timesheet.getSessions().stream()
+                .filter(s -> s.getClockOut() == null)
+                .findFirst()
+                .orElseThrow(() -> new com.vergiltempo.exception.NoActiveShiftException("No active session found"));
+
         // Validation: Negative working hours -> Reject
-        LocalDateTime startLdt = LocalDateTime.of(timesheet.getDate(), timesheet.getClockIn());
+        LocalDateTime startLdt = LocalDateTime.of(timesheet.getDate(), activeSession.getClockIn());
         LocalDateTime endLdt = LocalDateTime.of(eventDate, clockOutTime);
 
         long minutes = ChronoUnit.MINUTES.between(startLdt, endLdt);
@@ -141,9 +195,27 @@ public class TimesheetServiceImpl implements TimesheetService {
         BigDecimal decimalHours = BigDecimal.valueOf(minutes)
                 .divide(BigDecimal.valueOf(60), 2, RoundingMode.HALF_UP);
 
+        activeSession.setClockOut(clockOutTime);
+        activeSession.setHours(decimalHours);
+
+        // Update parent Timesheet fields:
+        // clockOut becomes the latest clockOutTime
         timesheet.setClockOut(clockOutTime);
-        timesheet.setHours(decimalHours);
-        timesheet.setNotes(request.getNotes());
+
+        // hours is the sum of completed sessions
+        BigDecimal totalHours = timesheet.getSessions().stream()
+                .filter(s -> s.getClockOut() != null)
+                .map(AttendanceSession::getHours)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        timesheet.setHours(totalHours);
+
+        if (request.getNotes() != null && !request.getNotes().trim().isEmpty()) {
+            if (timesheet.getNotes() == null || timesheet.getNotes().isEmpty()) {
+                timesheet.setNotes(request.getNotes().trim());
+            } else {
+                timesheet.setNotes(timesheet.getNotes() + " | " + request.getNotes().trim());
+            }
+        }
 
         // Update audit fields on Clock Out
         if (request.getBrowser() != null) timesheet.setBrowser(request.getBrowser());
@@ -205,6 +277,18 @@ public class TimesheetServiceImpl implements TimesheetService {
     }
 
     private TimesheetLogDto mapToTimesheetLogDto(Timesheet t) {
+        List<TimesheetLogDto.SessionDto> sessionDtos = null;
+        if (t.getSessions() != null) {
+            sessionDtos = t.getSessions().stream()
+                    .map(s -> TimesheetLogDto.SessionDto.builder()
+                            .id(s.getId())
+                            .clockIn(s.getClockIn())
+                            .clockOut(s.getClockOut())
+                            .hours(s.getHours())
+                            .build())
+                    .collect(Collectors.toList());
+        }
+
         return TimesheetLogDto.builder()
                 .id(t.getId())
                 .userId(t.getUser().getId())
@@ -221,6 +305,7 @@ public class TimesheetServiceImpl implements TimesheetService {
                 .screenResolution(t.getScreenResolution())
                 .ipAddress(t.getIpAddress())
                 .userAgent(t.getUserAgent())
+                .sessions(sessionDtos)
                 .build();
     }
 }

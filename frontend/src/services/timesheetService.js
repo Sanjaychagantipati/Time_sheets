@@ -183,41 +183,76 @@ export const timesheetService = {
     if (isMockMode()) {
       const logs = getTimesheets();
       const users = getUsers();
-      const currentUser = users.find((u) => u.id === userId);
+      const currentUser = users.find((u) => u.id === userId || String(u.id) === String(userId));
       const now = new Date();
       const todayStr = now.toISOString().split('T')[0];
       const timeStr = now.toTimeString().split(' ')[0];
 
-      // Check active
-      const active = logs.find((t) => t.userId === userId && t.clockOut === null);
-      if (active) {
-        throw new Error('Active shift already exists');
+      // Find if we already have a timesheet for today
+      let todayLog = logs.find((t) => t.userId === userId && t.date === todayStr);
+
+      if (todayLog) {
+        const hasActive = todayLog.sessions && todayLog.sessions.some(s => s.clockOut === null);
+        if (hasActive || todayLog.clockOut === null) {
+          throw new Error('Active shift already exists');
+        }
+
+        const newSession = {
+          id: `sess-${Date.now()}`,
+          clockIn: timeStr,
+          clockOut: null,
+          hours: 0
+        };
+
+        if (!todayLog.sessions) todayLog.sessions = [];
+        todayLog.sessions.push(newSession);
+        todayLog.clockOut = null; // Set active again
+        todayLog.status = 'ACTIVE';
+
+        const idx = logs.findIndex((t) => t.id === todayLog.id);
+        logs[idx] = todayLog;
+        saveTimesheets(logs);
+        localStorage.setItem('vt_active_shift', JSON.stringify(todayLog));
+        triggerSync();
+        return { message: 'Clocked in successfully', log: todayLog };
+      } else {
+        const hasAnyActive = logs.some((t) => t.userId === userId && t.clockOut === null);
+        if (hasAnyActive) {
+          throw new Error('Active shift already exists');
+        }
+
+        const newSession = {
+          id: `sess-${Date.now()}`,
+          clockIn: timeStr,
+          clockOut: null,
+          hours: 0
+        };
+
+        const newLog = {
+          id: `log-${Date.now()}`,
+          userId: userId,
+          date: todayStr,
+          clockIn: timeStr,
+          clockOut: null,
+          hours: 0,
+          notes: '',
+          clientCompany: currentUser ? currentUser.clientCompany : 'N/A',
+          status: 'ACTIVE',
+          browser: metadata.browser,
+          operatingSystem: metadata.operatingSystem,
+          deviceType: metadata.deviceType,
+          screenResolution: metadata.screenResolution,
+          ipAddress: '127.0.0.1',
+          userAgent: navigator.userAgent,
+          sessions: [newSession]
+        };
+
+        logs.push(newLog);
+        saveTimesheets(logs);
+        localStorage.setItem('vt_active_shift', JSON.stringify(newLog));
+        triggerSync();
+        return { message: 'Clocked in successfully', log: newLog };
       }
-
-
-      const newLog = {
-        id: `log-${Date.now()}`,
-        userId: userId,
-        date: todayStr,
-        clockIn: timeStr,
-        clockOut: null,
-        hours: 0,
-        notes: '',
-        clientCompany: currentUser ? currentUser.clientCompany : 'N/A',
-        status: 'ACTIVE',
-        browser: metadata.browser,
-        operatingSystem: metadata.operatingSystem,
-        deviceType: metadata.deviceType,
-        screenResolution: metadata.screenResolution,
-        ipAddress: '127.0.0.1',
-        userAgent: navigator.userAgent
-      };
-
-      logs.push(newLog);
-      saveTimesheets(logs);
-      localStorage.setItem('vt_active_shift', JSON.stringify(newLog));
-      triggerSync();
-      return { message: 'Clocked in successfully', log: newLog };
     } else {
       const response = await api.post('/timesheets/clock-in', {
         browser: metadata.browser,
@@ -288,26 +323,43 @@ export const timesheetService = {
 
     if (isMockMode()) {
       const logs = getTimesheets();
-      const logIndex = logs.findIndex((t) => t.id === activeClockId);
+      const logIndex = logs.findIndex((t) => t.id === activeClockId || t.clockOut === null);
       if (logIndex !== -1) {
         const log = logs[logIndex];
         const now = new Date();
         const todayStr = now.toISOString().split('T')[0];
         const timeStr = now.toTimeString().split(' ')[0];
 
+        if (!log.sessions) log.sessions = [];
+        const activeSessIdx = log.sessions.findIndex(s => s.clockOut === null);
+        if (activeSessIdx === -1) {
+          throw new Error('No active session found');
+        }
+
+        const activeSess = log.sessions[activeSessIdx];
+        activeSess.clockOut = timeStr;
+
+        const inTime = new Date(`${log.date}T${activeSess.clockIn}`);
+        const outTime = new Date(`${todayStr}T${timeStr}`);
+        let diffHours = (outTime - inTime) / 3600000;
+        if (diffHours < 0) diffHours = 0;
+        activeSess.hours = parseFloat(diffHours.toFixed(2));
+
         log.clockOut = timeStr;
-        log.notes = notes.trim();
         log.status = 'COMPLETED';
         log.browser = metadata.browser;
         log.operatingSystem = metadata.operatingSystem;
         log.deviceType = metadata.deviceType;
         log.screenResolution = metadata.screenResolution;
 
-        const inTime = new Date(`${log.date}T${log.clockIn}`);
-        const outTime = new Date(`${todayStr}T${timeStr}`);
-        let diffHours = (outTime - inTime) / 3600000;
-        if (diffHours < 0) diffHours = 0;
-        log.hours = parseFloat(diffHours.toFixed(2));
+        if (notes && notes.trim()) {
+          log.notes = log.notes ? log.notes + ' | ' + notes.trim() : notes.trim();
+        }
+
+        const totalHours = log.sessions
+          .filter(s => s.clockOut !== null)
+          .reduce((sum, s) => sum + (s.hours || 0), 0);
+        log.hours = parseFloat(totalHours.toFixed(2));
 
         logs[logIndex] = log;
         saveTimesheets(logs);
@@ -343,31 +395,67 @@ export const timesheetService = {
           const itemTime = new Date(item.deviceTime).toTimeString().split(' ')[0];
 
           if (item.action === 'CLOCK_IN') {
-            logs.unshift({
-              id: `pending-${item.id}`,
-              userId: item.userId,
-              date: itemDate,
-              clockIn: itemTime,
-              clockOut: null,
-              hours: 0,
-              notes: '',
-              clientCompany: item.clientCompany || 'N/A',
-              status: 'ACTIVE',
-              isOfflinePending: true
-            });
+            const todayIdx = logs.findIndex(l => l.date === itemDate);
+            if (todayIdx !== -1) {
+              const log = logs[todayIdx];
+              if (!log.sessions) log.sessions = [];
+              log.sessions.push({
+                id: `pending-sess-${item.id}`,
+                clockIn: itemTime,
+                clockOut: null,
+                hours: 0
+              });
+              log.clockOut = null;
+              log.status = 'ACTIVE';
+              log.isOfflinePending = true;
+            } else {
+              logs.unshift({
+                id: `pending-${item.id}`,
+                userId: item.userId,
+                date: itemDate,
+                clockIn: itemTime,
+                clockOut: null,
+                hours: 0,
+                notes: '',
+                clientCompany: item.clientCompany || 'N/A',
+                status: 'ACTIVE',
+                isOfflinePending: true,
+                sessions: [{
+                  id: `pending-sess-${item.id}`,
+                  clockIn: itemTime,
+                  clockOut: null,
+                  hours: 0
+                }]
+              });
+            }
           } else if (item.action === 'CLOCK_OUT') {
-            const activeIdx = logs.findIndex(l => l.clockOut === null);
+            const activeIdx = logs.findIndex(l => l.clockOut === null || (l.date === itemDate && l.sessions && l.sessions.some(s => s.clockOut === null)));
             if (activeIdx !== -1) {
-              logs[activeIdx].clockOut = itemTime;
-              logs[activeIdx].notes = item.notes;
-              logs[activeIdx].status = 'COMPLETED';
-              logs[activeIdx].isOfflinePending = true;
+              const log = logs[activeIdx];
+              if (!log.sessions) log.sessions = [];
+              const sessIdx = log.sessions.findIndex(s => s.clockOut === null);
+              if (sessIdx !== -1) {
+                const sess = log.sessions[sessIdx];
+                sess.clockOut = itemTime;
+                
+                const inTime = new Date(`${log.date}T${sess.clockIn}`);
+                const outTime = new Date(`${itemDate}T${itemTime}`);
+                let diffHours = (outTime - inTime) / 3600000;
+                if (diffHours < 0) diffHours = 0;
+                sess.hours = parseFloat(diffHours.toFixed(2));
+              }
 
-              const inTime = new Date(`${logs[activeIdx].date}T${logs[activeIdx].clockIn}`);
-              const outTime = new Date(`${itemDate}T${itemTime}`);
-              let diffHours = (outTime - inTime) / 3600000;
-              if (diffHours < 0) diffHours = 0;
-              logs[activeIdx].hours = parseFloat(diffHours.toFixed(2));
+              log.clockOut = itemTime;
+              log.status = 'COMPLETED';
+              log.isOfflinePending = true;
+              if (item.notes && item.notes.trim()) {
+                log.notes = log.notes ? log.notes + ' | ' + item.notes.trim() : item.notes.trim();
+              }
+
+              const totalHours = log.sessions
+                .filter(s => s.clockOut !== null)
+                .reduce((sum, s) => sum + (s.hours || 0), 0);
+              log.hours = parseFloat(totalHours.toFixed(2));
             }
           }
         });
@@ -421,26 +509,60 @@ export const timesheetService = {
               const todayStr = new Date(item.deviceTime).toISOString().split('T')[0];
               const timeStr = new Date(item.deviceTime).toTimeString().split(' ')[0];
 
-              const active = logs.find(t => t.userId === item.userId && t.clockOut === null);
-              if (active) throw new Error('Active shift already exists');
+              let todayLog = logs.find((t) => t.userId === item.userId && t.date === todayStr);
 
+              if (todayLog) {
+                const hasActive = todayLog.sessions && todayLog.sessions.some(s => s.clockOut === null);
+                if (hasActive || todayLog.clockOut === null) {
+                  throw new Error('Active shift already exists');
+                }
 
-              logs.push({
-                id: `log-${Date.now()}`,
-                userId: item.userId,
-                date: todayStr,
-                clockIn: timeStr,
-                clockOut: null,
-                hours: 0,
-                notes: '',
-                clientCompany: item.clientCompany || 'N/A',
-                status: 'ACTIVE',
-                browser: item.deviceMetadata?.browser,
-                operatingSystem: item.deviceMetadata?.operatingSystem,
-                deviceType: item.deviceMetadata?.deviceType,
-                screenResolution: item.deviceMetadata?.screenResolution
-              });
-              saveTimesheets(logs);
+                const newSession = {
+                  id: `sess-${Date.now()}`,
+                  clockIn: timeStr,
+                  clockOut: null,
+                  hours: 0
+                };
+
+                if (!todayLog.sessions) todayLog.sessions = [];
+                todayLog.sessions.push(newSession);
+                todayLog.clockOut = null; // Set active again
+                todayLog.status = 'ACTIVE';
+
+                const idx = logs.findIndex((t) => t.id === todayLog.id);
+                logs[idx] = todayLog;
+                saveTimesheets(logs);
+              } else {
+                const hasAnyActive = logs.some((t) => t.userId === item.userId && t.clockOut === null);
+                if (hasAnyActive) {
+                  throw new Error('Active shift already exists');
+                }
+
+                const newSession = {
+                  id: `sess-${Date.now()}`,
+                  clockIn: timeStr,
+                  clockOut: null,
+                  hours: 0
+                };
+
+                logs.push({
+                  id: `log-${Date.now()}`,
+                  userId: item.userId,
+                  date: todayStr,
+                  clockIn: timeStr,
+                  clockOut: null,
+                  hours: 0,
+                  notes: '',
+                  clientCompany: item.clientCompany || 'N/A',
+                  status: 'ACTIVE',
+                  browser: item.deviceMetadata?.browser,
+                  operatingSystem: item.deviceMetadata?.operatingSystem,
+                  deviceType: item.deviceMetadata?.deviceType,
+                  screenResolution: item.deviceMetadata?.screenResolution,
+                  sessions: [newSession]
+                });
+                saveTimesheets(logs);
+              }
             } else {
               await api.post('/timesheets/clock-in', {
                 clientElapsedMs,
@@ -453,21 +575,45 @@ export const timesheetService = {
           } else if (item.action === 'CLOCK_OUT') {
             if (isMockMode()) {
               const logs = getTimesheets();
-              const active = logs.find(t => t.userId === item.userId && t.clockOut === null);
-              if (!active) throw new Error('No active shift found');
+              const logIndex = logs.findIndex(t => t.userId === item.userId && t.clockOut === null);
+              if (logIndex === -1) throw new Error('No active shift found');
 
+              const log = logs[logIndex];
               const todayStr = new Date(item.deviceTime).toISOString().split('T')[0];
               const timeStr = new Date(item.deviceTime).toTimeString().split(' ')[0];
 
-              active.clockOut = timeStr;
-              active.notes = item.notes || '';
-              active.status = 'COMPLETED';
+              if (!log.sessions) log.sessions = [];
+              const activeSessIdx = log.sessions.findIndex(s => s.clockOut === null);
+              if (activeSessIdx === -1) {
+                throw new Error('No active session found');
+              }
 
-              const inTime = new Date(`${active.date}T${active.clockIn}`);
+              const activeSess = log.sessions[activeSessIdx];
+              activeSess.clockOut = timeStr;
+
+              const inTime = new Date(`${log.date}T${activeSess.clockIn}`);
               const outTime = new Date(`${todayStr}T${timeStr}`);
               let diffHours = (outTime - inTime) / 3600000;
               if (diffHours < 0) diffHours = 0;
-              active.hours = parseFloat(diffHours.toFixed(2));
+              activeSess.hours = parseFloat(diffHours.toFixed(2));
+
+              log.clockOut = timeStr;
+              log.status = 'COMPLETED';
+              log.browser = item.deviceMetadata?.browser;
+              log.operatingSystem = item.deviceMetadata?.operatingSystem;
+              log.deviceType = item.deviceMetadata?.deviceType;
+              log.screenResolution = item.deviceMetadata?.screenResolution;
+
+              if (item.notes && item.notes.trim()) {
+                log.notes = log.notes ? log.notes + ' | ' + item.notes.trim() : item.notes.trim();
+              }
+
+              const totalHours = log.sessions
+                .filter(s => s.clockOut !== null)
+                .reduce((sum, s) => sum + (s.hours || 0), 0);
+              log.hours = parseFloat(totalHours.toFixed(2));
+
+              logs[logIndex] = log;
               saveTimesheets(logs);
             } else {
               await api.post('/timesheets/clock-out', {

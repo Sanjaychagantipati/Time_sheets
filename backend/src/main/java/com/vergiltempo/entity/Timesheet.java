@@ -61,12 +61,17 @@ public class Timesheet {
     @Column(name = "created_at", insertable = false, updatable = false, columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime createdAt;
 
+    @OneToMany(mappedBy = "timesheet", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @OrderBy("clockIn ASC")
+    private java.util.List<AttendanceSession> sessions = new java.util.ArrayList<>();
+
     public Timesheet() {
     }
 
     @Builder
     public Timesheet(String id, User user, Client client, LocalDate date, LocalTime clockIn, LocalTime clockOut, BigDecimal hours, String notes, LocalDateTime createdAt,
-                     String browser, String operatingSystem, String deviceType, String screenResolution, String ipAddress, String userAgent) {
+                     String browser, String operatingSystem, String deviceType, String screenResolution, String ipAddress, String userAgent,
+                     java.util.List<AttendanceSession> sessions) {
         this.id = id;
         this.user = user;
         this.client = client;
@@ -82,6 +87,7 @@ public class Timesheet {
         this.screenResolution = screenResolution;
         this.ipAddress = ipAddress;
         this.userAgent = userAgent;
+        this.sessions = sessions != null ? sessions : new java.util.ArrayList<>();
     }
 
     public String getId() {
@@ -203,5 +209,13 @@ public class Timesheet {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public java.util.List<AttendanceSession> getSessions() {
+        return sessions;
+    }
+
+    public void setSessions(java.util.List<AttendanceSession> sessions) {
+        this.sessions = sessions;
     }
 }

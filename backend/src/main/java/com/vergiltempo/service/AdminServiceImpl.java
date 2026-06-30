@@ -92,6 +92,16 @@ public class AdminServiceImpl implements AdminService {
                 .notes(request.getNotes())
                 .build();
 
+        if (request.getClockIn() != null) {
+            AttendanceSession session = AttendanceSession.builder()
+                    .timesheet(timesheet)
+                    .clockIn(request.getClockIn().truncatedTo(ChronoUnit.SECONDS))
+                    .clockOut(request.getClockOut() != null ? request.getClockOut().truncatedTo(ChronoUnit.SECONDS) : null)
+                    .hours(hours)
+                    .build();
+            timesheet.getSessions().add(session);
+        }
+
         Timesheet saved = timesheetRepository.save(timesheet);
         return mapToTimesheetLogDto(saved);
     }
@@ -115,6 +125,18 @@ public class AdminServiceImpl implements AdminService {
         timesheet.setHours(hours);
         timesheet.setNotes(request.getNotes());
         timesheet.setClient(client);
+
+        // Clear existing sessions and add a single aggregated session matching the manual edit
+        timesheet.getSessions().clear();
+        if (request.getClockIn() != null) {
+            AttendanceSession session = AttendanceSession.builder()
+                    .timesheet(timesheet)
+                    .clockIn(request.getClockIn().truncatedTo(ChronoUnit.SECONDS))
+                    .clockOut(request.getClockOut() != null ? request.getClockOut().truncatedTo(ChronoUnit.SECONDS) : null)
+                    .hours(hours)
+                    .build();
+            timesheet.getSessions().add(session);
+        }
 
         Timesheet saved = timesheetRepository.save(timesheet);
         return mapToTimesheetLogDto(saved);
@@ -206,6 +228,19 @@ public class AdminServiceImpl implements AdminService {
     }
 
     private TimesheetLogDto mapToTimesheetLogDto(Timesheet t) {
+        List<TimesheetLogDto.SessionDto> sessionDtos = null;
+        if (t.getSessions() != null) {
+            sessionDtos = t.getSessions().stream()
+                    .map(s -> TimesheetLogDto.SessionDto.builder()
+                            .id(s.getId())
+                            .clockIn(s.getClockIn())
+                            .clockOut(s.getClockOut())
+                            .hours(s.getHours())
+                            .build())
+                    .collect(Collectors.toList())
+                    .stream().collect(Collectors.toList()); // use collect
+        }
+
         return TimesheetLogDto.builder()
                 .id(t.getId())
                 .userId(t.getUser().getId())
@@ -216,6 +251,7 @@ public class AdminServiceImpl implements AdminService {
                 .notes(t.getNotes())
                 .clientCompany(t.getClient().getName())
                 .status(t.getClockOut() == null ? "ACTIVE" : "COMPLETED")
+                .sessions(sessionDtos)
                 .build();
     }
 
