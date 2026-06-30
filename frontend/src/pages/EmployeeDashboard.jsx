@@ -129,21 +129,10 @@ export default function EmployeeDashboard() {
         </div>
 
         {/* Status Card */}
-        <div className="bg-[#111111] border border-[#2A2A2A] p-6 rounded-2xl shadow-xl flex flex-col justify-between relative overflow-hidden transition-all duration-300 hover:border-[#FF7A00]/20">
-          <div className="flex items-center justify-between pb-3 border-b border-[#2A2A2A]">
-            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Attendance Status</span>
-            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border shadow-sm ${
-              isClockedIn 
-                ? 'bg-green-500/10 text-green-400 border-green-500/20' 
-                : 'bg-gray-500/10 text-gray-400 border-gray-500/20'
-            }`}>
-              <span className={`w-2 h-2 rounded-full ${isClockedIn ? 'bg-green-400 animate-pulse' : 'bg-gray-400'}`}></span>
-              <span>{isClockedIn ? 'Working' : 'Not Clocked In'}</span>
-            </span>
-          </div>
-          <div className="pt-4 flex flex-col gap-1">
+        <div className="bg-[#111111] border border-[#2A2A2A] p-6 rounded-2xl shadow-xl flex flex-col justify-center relative overflow-hidden transition-all duration-300 hover:border-[#FF7A00]/20">
+          <div className="flex flex-col gap-1">
             <span className="text-xs text-gray-500 font-bold uppercase tracking-wider">Current Session Status</span>
-            <span className="text-sm font-bold text-white mt-1">
+            <span className="text-sm font-bold text-white mt-1.5">
               {isClockedIn && activeSession 
                 ? `Clocked In at ${formatTime12h(activeSession.clockIn)}` 
                 : 'No active session running'}
