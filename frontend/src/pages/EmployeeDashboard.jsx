@@ -112,34 +112,17 @@ export default function EmployeeDashboard() {
         </div>
       )}
 
-      {/* Row 1: Welcome Header & Status Card (Side-by-side on desktop, stacked on mobile) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
-        
-        {/* Welcome Header */}
-        <div className="bg-[#111111] border border-[#2A2A2A] p-6 rounded-2xl shadow-xl flex flex-col justify-between relative overflow-hidden transition-all duration-300 hover:border-[#FF7A00]/20">
-          <div className="absolute top-0 left-0 w-full h-[3px] bg-[#FF7A00]"></div>
-          <div>
-            <span className="text-xs text-gray-500 font-bold uppercase tracking-wider block mb-1">Welcome back</span>
-            <h2 className="text-2xl font-extrabold text-white tracking-tight">{getGreeting()}, {user?.name}</h2>
-          </div>
-          <div className="border-t border-[#2A2A2A] pt-4 mt-6 flex items-center justify-between text-sm text-gray-400">
-            <div>Assigned Client: <span className="text-[#FF7A00] font-bold">{user?.clientCompany || 'N/A'}</span></div>
-            <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">{getTodayDateStr()}</div>
-          </div>
+      {/* Row 1: Welcome Header */}
+      <div className="bg-[#111111] border border-[#2A2A2A] p-6 rounded-2xl shadow-xl flex flex-col justify-between relative overflow-hidden transition-all duration-300 hover:border-[#FF7A00]/20 w-full">
+        <div className="absolute top-0 left-0 w-full h-[3px] bg-[#FF7A00]"></div>
+        <div>
+          <span className="text-xs text-gray-500 font-bold uppercase tracking-wider block mb-1">Welcome back</span>
+          <h2 className="text-2xl font-extrabold text-white tracking-tight">{getGreeting()}, {user?.name}</h2>
         </div>
-
-        {/* Status Card */}
-        <div className="bg-[#111111] border border-[#2A2A2A] p-6 rounded-2xl shadow-xl flex flex-col justify-center relative overflow-hidden transition-all duration-300 hover:border-[#FF7A00]/20">
-          <div className="flex flex-col gap-1">
-            <span className="text-xs text-gray-500 font-bold uppercase tracking-wider">Current Session Status</span>
-            <span className="text-sm font-bold text-white mt-1.5">
-              {isClockedIn && activeSession 
-                ? `Clocked In at ${formatTime12h(activeSession.clockIn)}` 
-                : 'No active session running'}
-            </span>
-          </div>
+        <div className="border-t border-[#2A2A2A] pt-4 mt-6 flex items-center justify-between text-sm text-gray-400">
+          <div>Assigned Client: <span className="text-[#FF7A00] font-bold">{user?.clientCompany || 'N/A'}</span></div>
+          <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">{getTodayDateStr()}</div>
         </div>
-
       </div>
 
       {/* Row 2: Today's Summary (3 compact cards) */}
