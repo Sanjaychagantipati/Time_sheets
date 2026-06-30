@@ -103,7 +103,7 @@ export default function EmployeeDashboard() {
   const activeSession = todayLog?.sessions?.find(s => s.clockOut === null);
 
   return (
-    <div className="max-w-md mx-auto flex flex-col gap-6 animate-fade-in text-white pb-10 w-full px-1">
+    <div className="w-full flex flex-col gap-6 animate-fade-in text-white pb-10 px-1">
       {/* Offline Alert Banner */}
       {!isOnline && (
         <div className="bg-orange-500/10 border border-orange-500/20 text-[#FF7A00] px-4 py-3 rounded-xl flex items-center gap-2 text-xs font-bold animate-pulse">
@@ -131,9 +131,8 @@ export default function EmployeeDashboard() {
             <span>{isClockedIn ? 'Working' : 'Not Clocked In'}</span>
           </div>
         </div>
-        <div className="border-t border-[#2A2A2A] pt-2 text-[10px] text-gray-500 font-extrabold uppercase tracking-wide flex justify-between">
+        <div className="border-t border-[#2A2A2A] pt-2 text-[10px] text-gray-500 font-extrabold uppercase tracking-wide">
           <span>Date: {getTodayDateStr()}</span>
-          <span>ID: {user?.username}</span>
         </div>
       </div>
 
