@@ -9,10 +9,10 @@ export default {
     extend: {
       colors: {
         bgPrimary: '#0b0f19',
-        bgSecondary: '#121826',
-        bgTertiary: '#1a2336',
-        accentColor: '#6366f1',
-        accentHover: '#4f46e5',
+        bgSecondary: '#111111',
+        bgTertiary: '#1a1a1a',
+        accentColor: '#ff7a00',
+        accentHover: '#ff8c1a',
         successColor: '#10b981',
         successHover: '#059669',
         dangerColor: '#f43f5e',

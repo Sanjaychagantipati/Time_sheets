@@ -209,12 +209,23 @@ export default function AdminDashboard() {
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in text-white">
+      {/* Page Header */}
+      <div className="flex flex-col gap-2 md:flex-row md:justify-between md:items-center border-b border-[#2A2A2A] pb-5">
+        <div>
+          <h1 className="text-2xl font-extrabold text-white">Manager Overview</h1>
+          <p className="text-xs text-[#B3B3B3] mt-1">Track placed candidate shifts, client MNCs, and monthly billing reports.</p>
+        </div>
+        <div className="text-[10px] text-gray-400 font-extrabold uppercase tracking-wider py-1 px-3 bg-white/5 rounded-full border border-white/5 w-fit">
+          System Admin Portal
+        </div>
+      </div>
+
       {/* 1. Statistics Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         
         {/* Total Employees */}
-        <div className="bg-[#111111] border border-[#2A2A2A] p-6 rounded-xl flex items-center gap-5 hover:scale-[1.02] hover:border-[#FF7A00]/40 transition duration-300 shadow-lg">
-          <div className="w-12 h-12 rounded-xl bg-orange-500/10 text-[#FF7A00] flex items-center justify-center">
+        <div className="bg-[#111111] border border-[#2A2A2A] p-6 rounded-2xl flex items-center gap-5 hover:border-[#FF7A00]/40 transition duration-300 hover:shadow-lg hover:shadow-[#FF7A00]/5 hover:-translate-y-0.5">
+          <div className="w-12 h-12 rounded-xl bg-orange-500/10 text-[#FF7A00] flex items-center justify-center shrink-0">
             <UserCheck size={22} />
           </div>
           <div className="flex flex-col">
@@ -229,9 +240,9 @@ export default function AdminDashboard() {
             handleClearFilters();
             setToast({ message: 'Showing all logs for currently active shifts.', type: 'info' });
           }}
-          className="bg-[#111111] border border-[#2A2A2A] p-6 rounded-xl flex items-center gap-5 hover:scale-[1.02] hover:border-[#FF7A00] cursor-pointer transition duration-300 shadow-lg"
+          className="bg-[#111111] border border-[#2A2A2A] p-6 rounded-2xl flex items-center gap-5 hover:border-[#FF7A00] cursor-pointer transition duration-300 hover:shadow-lg hover:shadow-[#FF7A00]/5 hover:-translate-y-0.5"
         >
-          <div className="w-12 h-12 rounded-xl bg-orange-500/10 text-[#FF7A00] flex items-center justify-center">
+          <div className="w-12 h-12 rounded-xl bg-orange-500/10 text-[#FF7A00] flex items-center justify-center shrink-0">
             <Users size={22} />
           </div>
           <div className="flex flex-col">
@@ -241,8 +252,8 @@ export default function AdminDashboard() {
         </div>
 
         {/* Total Clients */}
-        <div className="bg-[#111111] border border-[#2A2A2A] p-6 rounded-xl flex items-center gap-5 hover:scale-[1.02] hover:border-[#FF7A00]/40 transition duration-300 shadow-lg">
-          <div className="w-12 h-12 rounded-xl bg-orange-500/10 text-[#FF7A00] flex items-center justify-center">
+        <div className="bg-[#111111] border border-[#2A2A2A] p-6 rounded-2xl flex items-center gap-5 hover:border-[#FF7A00]/40 transition duration-300 hover:shadow-lg hover:shadow-[#FF7A00]/5 hover:-translate-y-0.5">
+          <div className="w-12 h-12 rounded-xl bg-orange-500/10 text-[#FF7A00] flex items-center justify-center shrink-0">
             <Briefcase size={22} />
           </div>
           <div className="flex flex-col">
@@ -252,8 +263,8 @@ export default function AdminDashboard() {
         </div>
 
         {/* Timesheets Submitted Today */}
-        <div className="bg-[#111111] border border-[#2A2A2A] p-6 rounded-xl flex items-center gap-5 hover:scale-[1.02] hover:border-[#FF7A00]/40 transition duration-300 shadow-lg">
-          <div className="w-12 h-12 rounded-xl bg-orange-500/10 text-[#FF7A00] flex items-center justify-center">
+        <div className="bg-[#111111] border border-[#2A2A2A] p-6 rounded-2xl flex items-center gap-5 hover:border-[#FF7A00]/40 transition duration-300 hover:shadow-lg hover:shadow-[#FF7A00]/5 hover:-translate-y-0.5">
+          <div className="w-12 h-12 rounded-xl bg-orange-500/10 text-[#FF7A00] flex items-center justify-center shrink-0">
             <FileSpreadsheet size={22} />
           </div>
           <div className="flex flex-col">
@@ -265,13 +276,13 @@ export default function AdminDashboard() {
       </div>
 
       {/* 2. Quick Admin Actions Grid */}
-      <div className="bg-[#111111] border border-[#2A2A2A] p-6 rounded-2xl shadow-2xl">
+      <div className="bg-[#111111] border border-[#2A2A2A] p-6 rounded-2xl shadow-xl">
         <h3 className="text-sm font-bold text-[#B3B3B3] uppercase tracking-wider mb-4">Quick Admin Actions</h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
           
           <button 
             onClick={() => setIsCreateOpen(true)}
-            className="h-24 p-4 rounded-xl border border-[#2A2A2A] hover:border-[#FF7A00] bg-[#1A1A1A] hover:bg-[#1A1A1A]/80 flex flex-col items-center justify-center gap-2 text-center transition cursor-pointer"
+            className="h-24 p-4 rounded-2xl border border-[#2A2A2A] hover:border-[#FF7A00]/60 bg-[#1A1A1A] hover:bg-[#1A1A1A]/80 flex flex-col items-center justify-center gap-2 text-center transition-all duration-300 hover:shadow-lg hover:shadow-[#FF7A00]/5 hover:-translate-y-0.5 cursor-pointer"
           >
             <UserPlus size={20} className="text-[#FF7A00]" />
             <span className="text-xs font-semibold text-white">Create Candidate</span>
@@ -279,7 +290,7 @@ export default function AdminDashboard() {
 
           <button 
             onClick={handleAddManualClick}
-            className="h-24 p-4 rounded-xl border border-[#2A2A2A] hover:border-[#FF7A00] bg-[#1A1A1A] hover:bg-[#1A1A1A]/80 flex flex-col items-center justify-center gap-2 text-center transition cursor-pointer"
+            className="h-24 p-4 rounded-2xl border border-[#2A2A2A] hover:border-[#FF7A00]/60 bg-[#1A1A1A] hover:bg-[#1A1A1A]/80 flex flex-col items-center justify-center gap-2 text-center transition-all duration-300 hover:shadow-lg hover:shadow-[#FF7A00]/5 hover:-translate-y-0.5 cursor-pointer"
           >
             <CalendarPlus size={20} className="text-[#FF7A00]" />
             <span className="text-xs font-semibold text-white">Add Manual Entry</span>
@@ -287,7 +298,7 @@ export default function AdminDashboard() {
 
           <button 
             onClick={() => setIsCompanyOpen(true)}
-            className="h-24 p-4 rounded-xl border border-[#2A2A2A] hover:border-[#FF7A00] bg-[#1A1A1A] hover:bg-[#1A1A1A]/80 flex flex-col items-center justify-center gap-2 text-center transition cursor-pointer"
+            className="h-24 p-4 rounded-2xl border border-[#2A2A2A] hover:border-[#FF7A00]/60 bg-[#1A1A1A] hover:bg-[#1A1A1A]/80 flex flex-col items-center justify-center gap-2 text-center transition-all duration-300 hover:shadow-lg hover:shadow-[#FF7A00]/5 hover:-translate-y-0.5 cursor-pointer"
           >
             <Briefcase size={20} className="text-[#FF7A00]" />
             <span className="text-xs font-semibold text-white">Create Client Company</span>
@@ -295,7 +306,7 @@ export default function AdminDashboard() {
 
           <button 
             onClick={handleExportMaster}
-            className="h-24 p-4 rounded-xl border border-[#2A2A2A] hover:border-[#FF7A00] bg-[#1A1A1A] hover:bg-[#1A1A1A]/80 flex flex-col items-center justify-center gap-2 text-center transition cursor-pointer"
+            className="h-24 p-4 rounded-2xl border border-[#2A2A2A] hover:border-[#FF7A00]/60 bg-[#1A1A1A] hover:bg-[#1A1A1A]/80 flex flex-col items-center justify-center gap-2 text-center transition-all duration-300 hover:shadow-lg hover:shadow-[#FF7A00]/5 hover:-translate-y-0.5 cursor-pointer"
           >
             <Download size={20} className="text-[#FF7A00]" />
             <span className="text-xs font-semibold text-white">Export Master CSV</span>
@@ -303,7 +314,7 @@ export default function AdminDashboard() {
 
           <button 
             onClick={() => setIsDownloadOpen(true)}
-            className="h-24 p-4 rounded-xl border border-[#2A2A2A] hover:border-[#FF7A00] bg-[#1A1A1A] hover:bg-[#1A1A1A]/80 flex flex-col items-center justify-center gap-2 text-center transition cursor-pointer"
+            className="h-24 p-4 rounded-2xl border border-[#2A2A2A] hover:border-[#FF7A00]/60 bg-[#1A1A1A] hover:bg-[#1A1A1A]/80 flex flex-col items-center justify-center gap-2 text-center transition-all duration-300 hover:shadow-lg hover:shadow-[#FF7A00]/5 hover:-translate-y-0.5 cursor-pointer"
           >
             <FileDown size={20} className="text-[#FF7A00]" />
             <span className="text-xs font-semibold text-white">Monthly Attendance Report</span>
@@ -313,9 +324,9 @@ export default function AdminDashboard() {
       </div>
 
       {/* 3. Filter control panel */}
-      <div className="bg-[#111111] border border-[#2A2A2A] p-6 rounded-2xl shadow-2xl">
+      <div className="bg-[#111111] border border-[#2A2A2A] p-6 rounded-2xl shadow-xl">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-bold flex items-center gap-2 text-[#B3B3B3]">
+          <h3 className="text-xs font-bold uppercase tracking-wider flex items-center gap-2 text-[#B3B3B3]">
             <SlidersHorizontal size={14} className="text-[#FF7A00]" />
             <span>Filter & Search Records</span>
           </h3>
@@ -329,7 +340,7 @@ export default function AdminDashboard() {
               name="filterEmployee"
               value={filterEmployee}
               onChange={(e) => setFilterEmployee(e.target.value)}
-              className="bg-[#1A1A1A] border border-[#2A2A2A] text-white rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-[#FF7A00] focus:ring-1 focus:ring-[#FF7A00] transition"
+              className="h-11 bg-[#1A1A1A] border border-[#2A2A2A] text-white rounded-xl px-3 text-xs focus:outline-none focus:border-[#FF7A00] focus:ring-1 focus:ring-[#FF7A00] transition cursor-pointer"
             >
               <option value="all">All Candidates</option>
               {employees.map((emp) => (
@@ -347,7 +358,7 @@ export default function AdminDashboard() {
               name="filterClient"
               value={filterClient}
               onChange={(e) => setFilterClient(e.target.value)}
-              className="bg-[#1A1A1A] border border-[#2A2A2A] text-white rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-[#FF7A00] focus:ring-1 focus:ring-[#FF7A00] transition"
+              className="h-11 bg-[#1A1A1A] border border-[#2A2A2A] text-white rounded-xl px-3 text-xs focus:outline-none focus:border-[#FF7A00] focus:ring-1 focus:ring-[#FF7A00] transition cursor-pointer"
             >
               <option value="all">All Client MNCs</option>
               {uniqueClients.map((c) => (
@@ -364,7 +375,7 @@ export default function AdminDashboard() {
               type="date"
               value={filterStartDate}
               onChange={(e) => setFilterStartDate(e.target.value)}
-              className="bg-[#1A1A1A] border border-[#2A2A2A] text-white rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-[#FF7A00] focus:ring-1 focus:ring-[#FF7A00] transition"
+              className="h-11 bg-[#1A1A1A] border border-[#2A2A2A] text-white rounded-xl px-3 text-xs focus:outline-none focus:border-[#FF7A00] focus:ring-1 focus:ring-[#FF7A00] transition cursor-pointer"
             />
           </div>
 
@@ -376,7 +387,7 @@ export default function AdminDashboard() {
               type="date"
               value={filterEndDate}
               onChange={(e) => setFilterEndDate(e.target.value)}
-              className="bg-[#1A1A1A] border border-[#2A2A2A] text-white rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-[#FF7A00] focus:ring-1 focus:ring-[#FF7A00] transition"
+              className="h-11 bg-[#1A1A1A] border border-[#2A2A2A] text-white rounded-xl px-3 text-xs focus:outline-none focus:border-[#FF7A00] focus:ring-1 focus:ring-[#FF7A00] transition cursor-pointer"
             />
           </div>
 
@@ -384,13 +395,13 @@ export default function AdminDashboard() {
         <div className="flex justify-end gap-3 mt-4">
           <button
             onClick={handleClearFilters}
-            className="px-4 py-2 bg-[#2A2A2A] hover:bg-[#333333] text-white border border-[#3A3A3A] rounded-xl text-xs font-bold transition duration-200 cursor-pointer"
+            className="h-10 px-5 bg-[#1A1A1A] hover:bg-[#2A2A2A] text-[#B3B3B3] hover:text-white border border-[#2A2A2A] rounded-xl text-xs font-bold transition duration-200 cursor-pointer"
           >
             Reset Filters
           </button>
           <button
             onClick={loadData}
-            className="px-4 py-2 bg-[#FF7A00] hover:bg-[#FF8C1A] text-white rounded-xl text-xs font-bold transition duration-200 cursor-pointer shadow-md shadow-[#FF7A00]/10"
+            className="h-10 px-5 bg-[#FF7A00] hover:bg-[#FF8C1A] text-white rounded-xl text-xs font-bold transition duration-200 cursor-pointer shadow-md shadow-[#FF7A00]/10 hover:shadow-lg hover:shadow-[#FF7A00]/20"
           >
             Apply Filters
           </button>
@@ -413,15 +424,15 @@ export default function AdminDashboard() {
             <button
               onClick={handleBulkDelete}
               disabled={selectedTimesheets.length === 0}
-              className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition duration-200 cursor-pointer disabled:cursor-not-allowed ${
+              className={`px-3.5 py-1.5 text-xs font-bold rounded-xl border transition-all duration-200 cursor-pointer disabled:cursor-not-allowed hover:scale-[1.01] active:scale-[0.99] ${
                 selectedTimesheets.length === 0
                   ? 'border-white/5 bg-[#2A2A2A]/20 text-gray-500'
-                  : 'bg-[#FF7A00] hover:bg-[#FF8C1A] border-transparent text-white shadow-md shadow-[#FF7A00]/10'
+                  : 'bg-[#FF7A00] hover:bg-[#FF8C1A] border-transparent text-white shadow-md shadow-[#FF7A00]/10 hover:shadow-[#FF7A00]/20'
               }`}
             >
               Delete Selected
             </button>
-            <span className="px-2.5 py-1 text-xs font-bold bg-orange-500/10 text-[#FF7A00] border border-orange-500/20 rounded-full">
+            <span className="px-2.5 py-1 text-xs font-bold bg-orange-500/10 text-[#FF7A00] border border-orange-500/20 rounded-full animate-fade-in">
               {logs.length} entries
             </span>
           </div>
@@ -440,14 +451,14 @@ export default function AdminDashboard() {
         ) : (
           <div className="overflow-x-auto w-full">
             <table className="w-full text-left border-collapse text-sm">
-              <thead className="sticky top-0 bg-[#111111] z-20">
+              <thead className="sticky top-0 bg-[#111111]/90 backdrop-blur-md z-20">
                 <tr className="border-b border-[#2A2A2A] bg-black/40 text-[#B3B3B3] uppercase text-[10px] tracking-wider font-bold">
                   <th className="px-6 py-4 w-12">
                     <input
                       type="checkbox"
                       checked={logs.length > 0 && selectedTimesheets.length === logs.length}
                       onChange={toggleSelectAll}
-                      className="rounded border-[#2A2A2A] bg-[#1A1A1A] text-[#FF7A00] focus:ring-[#FF7A00] w-4 h-4 cursor-pointer"
+                      className="rounded border-[#2A2A2A] bg-[#1A1A1A] text-[#FF7A00] focus:ring-[#FF7A00] focus:ring-offset-0 w-4 h-4 cursor-pointer accent-[#FF7A00] transition duration-200"
                     />
                   </th>
                   <th className="px-6 py-4">Candidate</th>
@@ -472,7 +483,7 @@ export default function AdminDashboard() {
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => toggleSelection(log.id)}
-                          className="rounded border-[#2A2A2A] bg-[#1A1A1A] text-[#FF7A00] focus:ring-[#FF7A00] w-4 h-4 cursor-pointer"
+                          className="rounded border-[#2A2A2A] bg-[#1A1A1A] text-[#FF7A00] focus:ring-[#FF7A00] focus:ring-offset-0 w-4 h-4 cursor-pointer accent-[#FF7A00] transition duration-200"
                         />
                       </td>
                       <td className="px-6 py-4">
@@ -496,7 +507,7 @@ export default function AdminDashboard() {
                       <td className="px-6 py-4">
                         <span className={`px-2.5 py-1 text-[10px] font-extrabold rounded-full border ${
                           log.status === 'ACTIVE' 
-                            ? 'bg-transparent text-white border-white/40 animate-pulse' 
+                            ? 'bg-green-500/10 text-green-400 border-green-500/20 animate-pulse' 
                             : 'bg-orange-500/10 text-[#FF7A00] border-orange-500/20'
                         }`}>
                           {log.status === 'ACTIVE' ? 'Active' : 'Completed'}
@@ -509,7 +520,7 @@ export default function AdminDashboard() {
                         <div className="inline-flex gap-2">
                           <button
                             onClick={() => handleEditClick(log.id)}
-                            className="p-1.5 border border-white/10 hover:border-[#FF7A00] text-gray-400 hover:text-white rounded-lg transition cursor-pointer"
+                            className="p-1.5 border border-white/10 hover:border-[#FF7A00] hover:bg-[#FF7A00]/10 text-gray-400 hover:text-[#FF7A00] rounded-xl transition cursor-pointer active:scale-95 duration-200"
                             title="Edit Log"
                             aria-label="Edit"
                           >
@@ -517,7 +528,7 @@ export default function AdminDashboard() {
                           </button>
                           <button
                             onClick={() => handleDeleteLog(log.id)}
-                            className="p-1.5 border border-rose-500/20 hover:border-rose-500 text-rose-400 hover:text-white hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
+                            className="p-1.5 border border-rose-500/20 hover:border-rose-500 hover:bg-rose-500/10 text-rose-400 hover:text-white rounded-xl transition cursor-pointer active:scale-95 duration-200"
                             title="Delete Log"
                             aria-label="Delete"
                           >
@@ -547,7 +558,7 @@ export default function AdminDashboard() {
         </div>
         <div className="overflow-x-auto w-full">
           <table className="w-full text-left border-collapse text-sm">
-            <thead className="sticky top-0 bg-[#111111] z-20">
+            <thead className="sticky top-0 bg-[#111111]/90 backdrop-blur-md z-20">
               <tr className="border-b border-[#2A2A2A] bg-black/40 text-[#B3B3B3] uppercase text-[10px] tracking-wider font-bold">
                 <th className="px-6 py-4">Name</th>
                 <th className="px-6 py-4">Username</th>
@@ -565,10 +576,10 @@ export default function AdminDashboard() {
                     <td className="px-6 py-4 font-bold text-white">{emp.name}</td>
                     <td className="px-6 py-4 font-mono text-xs text-[#B3B3B3]">{emp.username}</td>
                     <td className="px-6 py-4">
-                      <span className={`px-2 py-0.5 text-[10px] font-bold rounded border uppercase ${
+                      <span className={`px-2 py-0.5 text-[9px] font-extrabold rounded-lg border uppercase tracking-wider ${
                         emp.role.toLowerCase() === 'admin'
                           ? 'bg-orange-500/10 text-[#FF7A00] border-orange-500/20'
-                          : 'bg-transparent text-white border-white/20'
+                          : 'bg-white/5 text-white border-white/10'
                       }`}>
                         {emp.role}
                       </span>
@@ -577,7 +588,7 @@ export default function AdminDashboard() {
                     <td className="px-6 py-4">
                       <span className={`px-2.5 py-1 text-[10px] font-extrabold rounded-full border ${
                         isCurrentlyClockedIn 
-                          ? 'bg-orange-500/10 text-[#FF7A00] border-orange-500/20 animate-pulse' 
+                          ? 'bg-green-500/10 text-green-400 border-green-500/20 animate-pulse' 
                           : 'bg-transparent text-gray-500 border border-[#2A2A2A]'
                       }`}>
                         {isCurrentlyClockedIn ? 'Clocked In' : 'Off Duty'}
@@ -586,7 +597,7 @@ export default function AdminDashboard() {
                     <td className="px-6 py-4 text-right">
                       <button
                         onClick={() => handleDeleteEmployee(emp.id, emp.name)}
-                        className="p-1.5 border border-rose-500/20 hover:border-rose-500 text-rose-400 hover:text-white hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
+                        className="p-1.5 border border-rose-500/20 hover:border-rose-500 hover:bg-rose-500/10 text-rose-400 hover:text-white rounded-xl transition cursor-pointer active:scale-95 duration-200"
                         title="Delete Employee"
                         aria-label={`Delete ${emp.name}`}
                       >
