@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
+@RequestMapping("/api")
 public class HolidayController {
 
     private final HolidayService holidayService;
@@ -19,25 +20,25 @@ public class HolidayController {
         this.holidayService = holidayService;
     }
 
-    @GetMapping("/api/holidays")
+    @GetMapping("/holidays")
     public ResponseEntity<List<HolidayDTO>> getActiveHolidays() {
         return ResponseEntity.ok(holidayService.getActiveHolidays());
     }
 
-    @GetMapping("/api/admin/holidays")
+    @GetMapping("/admin/holidays")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<HolidayDTO>> getAllHolidays() {
         return ResponseEntity.ok(holidayService.getAllHolidays());
     }
 
-    @PostMapping("/api/admin/holidays")
+    @PostMapping("/admin/holidays")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<HolidayDTO> createHoliday(@Valid @RequestBody HolidayDTO request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(holidayService.createHoliday(request));
     }
 
-    @PutMapping("/api/admin/holidays/{id}")
+    @PutMapping("/admin/holidays/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<HolidayDTO> updateHoliday(
             @PathVariable String id,
@@ -45,7 +46,7 @@ public class HolidayController {
         return ResponseEntity.ok(holidayService.updateHoliday(id, request));
     }
 
-    @DeleteMapping("/api/admin/holidays/{id}")
+    @DeleteMapping("/admin/holidays/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Map<String, String>> deleteHoliday(@PathVariable String id) {
         holidayService.deleteHoliday(id);
