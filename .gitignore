@@ -31,3 +31,7 @@ lerna-debug.log*
 *.njsproj
 *.sln
 *.sw?
+
+# Application secrets and properties
+**/application.properties
+
