@@ -3,7 +3,7 @@ import { Play, Square, AlertTriangle } from 'lucide-react';
 import { timesheetService } from '../../services/timesheetService';
 import { useAuth } from '../../context/AuthContext';
 
-export default function ClockCard({ onShiftLogged, setToast }) {
+export default function ClockCard({ onShiftLogged, setToast, isHoliday = false, holidayName = '' }) {
   const { user } = useAuth();
   const [isClockedIn, setIsClockedIn] = useState(false);
   const [activeLog, setActiveLog] = useState(null);
@@ -200,18 +200,22 @@ export default function ClockCard({ onShiftLogged, setToast }) {
 
         <button
           onClick={isClockedIn ? () => setShowConfirm(true) : handleClockIn}
-          disabled={submitting}
+          disabled={submitting || isHoliday}
           className={`w-full py-4 text-base font-bold rounded-xl flex items-center justify-center gap-2 transition duration-300 cursor-pointer disabled:cursor-not-allowed ${
-            isClockedIn
-              ? 'bg-[#2A2A2A] hover:bg-[#333333] text-white border border-[#3A3A3A] hover:shadow-[0_0_15px_rgba(255,122,0,0.1)]'
-              : 'bg-[#FF7A00] hover:bg-[#FF8C1A] text-white hover:shadow-[0_0_15px_rgba(255,122,0,0.35)] shadow-lg shadow-[#FF7A00]/10'
+            isHoliday
+              ? 'bg-[#1A1A1A] text-gray-500 border border-[#2A2A2A] hover:shadow-none'
+              : isClockedIn
+                ? 'bg-[#2A2A2A] hover:bg-[#333333] text-white border border-[#3A3A3A] hover:shadow-[0_0_15px_rgba(255,122,0,0.1)]'
+                : 'bg-[#FF7A00] hover:bg-[#FF8C1A] text-white hover:shadow-[0_0_15px_rgba(255,122,0,0.35)] shadow-lg shadow-[#FF7A00]/10'
           }`}
         >
           {isClockedIn ? <Square size={16} /> : <Play size={16} />}
           <span>
             {submitting 
               ? (isClockedIn ? 'Clocking Out...' : 'Clocking In...') 
-              : (isClockedIn ? 'Clock Out' : 'Clock In')}
+              : isHoliday
+                ? 'Holiday - Clock In Disabled'
+                : (isClockedIn ? 'Clock Out' : 'Clock In')}
           </span>
         </button>
       </div>

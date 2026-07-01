@@ -34,6 +34,23 @@ export default function EmployeeDashboard() {
     };
   }, []);
 
+  const [todayHolidayName, setTodayHolidayName] = useState('');
+
+  const checkHoliday = useCallback(async () => {
+    try {
+      const activeHolidays = await timesheetService.getActiveHolidaysList();
+      const localTodayStr = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0];
+      const holiday = activeHolidays.find(h => h.holidayDate === localTodayStr);
+      if (holiday) {
+        setTodayHolidayName(holiday.holidayName);
+      } else {
+        setTodayHolidayName('');
+      }
+    } catch (err) {
+      console.error("Error checking holiday status", err);
+    }
+  }, []);
+
   const checkStatus = useCallback(async () => {
     if (!user) return;
     try {
@@ -60,9 +77,10 @@ export default function EmployeeDashboard() {
   }, [user]);
 
   const refreshData = useCallback(async () => {
+    await checkHoliday();
     await checkStatus();
     await fetchLogs();
-  }, [checkStatus, fetchLogs]);
+  }, [checkHoliday, checkStatus, fetchLogs]);
 
   useEffect(() => {
     refreshData();
@@ -112,6 +130,19 @@ export default function EmployeeDashboard() {
         </div>
       )}
 
+      {/* Holiday Alert Banner */}
+      {todayHolidayName && (
+        <div className="bg-orange-500/10 border border-[#FF7A00]/30 text-[#FF7A00] px-5 py-4 rounded-xl flex flex-col gap-1 text-sm animate-fade-in">
+          <div className="font-extrabold uppercase tracking-wider flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-[#FF7A00] animate-pulse shadow-[0_0_8px_#FF7A00]" />
+            <span>Today is a Company Holiday</span>
+          </div>
+          <p className="text-gray-300 text-xs font-semibold">
+            {todayHolidayName} (Clock-in and attendance logging features are disabled for today).
+          </p>
+        </div>
+      )}
+
       {/* Main Grid Layout: Left Column (Welcome + Clock) & Right Column (Summary + History) */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
         
@@ -132,7 +163,7 @@ export default function EmployeeDashboard() {
 
           {/* Clock Button Card */}
           <div className="w-full">
-            <ClockCard onShiftLogged={refreshData} setToast={setToast} />
+            <ClockCard onShiftLogged={refreshData} setToast={setToast} isHoliday={!!todayHolidayName} holidayName={todayHolidayName} />
           </div>
         </div>
 

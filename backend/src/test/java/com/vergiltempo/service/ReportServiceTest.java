@@ -8,6 +8,7 @@ import com.vergiltempo.entity.Timesheet;
 import com.vergiltempo.entity.User;
 import com.vergiltempo.repository.TimesheetRepository;
 import com.vergiltempo.repository.UserRepository;
+import com.vergiltempo.repository.HolidayRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -26,6 +27,7 @@ public class ReportServiceTest {
 
     private TimesheetRepository timesheetRepository;
     private UserRepository userRepository;
+    private HolidayRepository holidayRepository;
     private ReportService reportService;
 
     private User employee;
@@ -35,7 +37,8 @@ public class ReportServiceTest {
     public void setUp() {
         userRepository = Mockito.mock(UserRepository.class);
         timesheetRepository = Mockito.mock(TimesheetRepository.class);
-        reportService = new ReportServiceImpl(timesheetRepository, userRepository);
+        holidayRepository = Mockito.mock(HolidayRepository.class);
+        reportService = new ReportServiceImpl(timesheetRepository, userRepository, holidayRepository);
 
         client = Client.builder().id(1).name("Microsoft").code("MSFT").active(true).build();
         employee = User.builder()

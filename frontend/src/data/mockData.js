@@ -45,6 +45,25 @@ export const clients = [
   { id: 5, name: "Netflix" }
 ];
 
+export const initialHolidays = [
+  {
+    id: "h1",
+    holidayName: "New Year's Day",
+    holidayDate: "2026-01-01",
+    description: "Beginning of the civil year",
+    holidayType: "Public Holiday",
+    active: true
+  },
+  {
+    id: "h2",
+    holidayName: "Independence Day",
+    holidayDate: "2026-08-15",
+    description: "National Independence Day anniversary",
+    holidayType: "Public Holiday",
+    active: true
+  }
+];
+
 // Seed initial mock timesheets if not present in localStorage
 const generateSeedTimesheets = () => {
   return [];
@@ -57,6 +76,9 @@ export const initDb = () => {
   }
   if (!localStorage.getItem('vt_timesheets')) {
     localStorage.setItem('vt_timesheets', JSON.stringify(generateSeedTimesheets()));
+  }
+  if (!localStorage.getItem('vt_holidays')) {
+    localStorage.setItem('vt_holidays', JSON.stringify(initialHolidays));
   }
 };
 
@@ -73,6 +95,15 @@ export const getStoredTimesheets = () => {
 
 export const saveStoredTimesheets = (sheets) => {
   localStorage.setItem('vt_timesheets', JSON.stringify(sheets));
+};
+
+export const getStoredHolidays = () => {
+  initDb();
+  return JSON.parse(localStorage.getItem('vt_holidays') || '[]');
+};
+
+export const saveStoredHolidays = (holidays) => {
+  localStorage.setItem('vt_holidays', JSON.stringify(holidays));
 };
 
 // Derived stats helper functions

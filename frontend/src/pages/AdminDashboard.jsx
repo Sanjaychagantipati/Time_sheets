@@ -3,12 +3,14 @@ import { timesheetService } from '../services/timesheetService';
 import CreateEmployeeModal from '../components/admin/CreateEmployeeModal';
 import EditLogModal from '../components/admin/EditLogModal';
 import MonthlyDownloadModal from '../components/admin/MonthlyDownloadModal';
+import HolidayManagementModal from '../components/admin/HolidayManagementModal';
 import Toast from '../components/common/Toast';
 import {
   Users,
   UserCheck,
   Briefcase,
   UserPlus,
+  Calendar,
   CalendarPlus,
   Download,
   FileDown,
@@ -42,6 +44,7 @@ export default function AdminDashboard() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDownloadOpen, setIsDownloadOpen] = useState(false);
   const [isCompanyOpen, setIsCompanyOpen] = useState(false);
+  const [isHolidayOpen, setIsHolidayOpen] = useState(false);
   const [selectedLogId, setSelectedLogId] = useState(null);
 
   // Bulk Selection State
@@ -318,6 +321,14 @@ export default function AdminDashboard() {
           >
             <FileDown size={20} className="text-[#FF7A00]" />
             <span className="text-xs font-semibold text-white">Monthly Attendance Report</span>
+          </button>
+
+          <button 
+            onClick={() => setIsHolidayOpen(true)}
+            className="h-24 p-4 rounded-2xl border border-[#2A2A2A] hover:border-[#FF7A00]/60 bg-[#1A1A1A] hover:bg-[#1A1A1A]/80 flex flex-col items-center justify-center gap-2 text-center transition-all duration-300 hover:shadow-lg hover:shadow-[#FF7A00]/5 hover:-translate-y-0.5 cursor-pointer"
+          >
+            <Calendar size={20} className="text-[#FF7A00]" />
+            <span className="text-xs font-semibold text-white">Holiday Management</span>
           </button>
 
         </div>
@@ -642,6 +653,12 @@ export default function AdminDashboard() {
         isOpen={isCompanyOpen}
         onClose={() => setIsCompanyOpen(false)}
         employees={employees}
+        setToast={setToast}
+      />
+
+      <HolidayManagementModal
+        isOpen={isHolidayOpen}
+        onClose={() => setIsHolidayOpen(false)}
         setToast={setToast}
       />
 

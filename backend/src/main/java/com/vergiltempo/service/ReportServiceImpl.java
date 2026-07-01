@@ -30,10 +30,14 @@ public class ReportServiceImpl implements ReportService {
 
     private final TimesheetRepository timesheetRepository;
     private final UserRepository userRepository;
+    private final HolidayRepository holidayRepository;
 
-    public ReportServiceImpl(TimesheetRepository timesheetRepository, UserRepository userRepository) {
+    public ReportServiceImpl(TimesheetRepository timesheetRepository,
+                             UserRepository userRepository,
+                             HolidayRepository holidayRepository) {
         this.timesheetRepository = timesheetRepository;
         this.userRepository = userRepository;
+        this.holidayRepository = holidayRepository;
     }
 
     @Override
@@ -145,9 +149,13 @@ public class ReportServiceImpl implements ReportService {
         List<Timesheet> logs = timesheetRepository.findByUserIdAndDateBetweenOrderByDateAsc(
                 employeeId, start, end);
 
-        if (logs.isEmpty()) {
-            throw new ResourceNotFoundException("No logged hours found for this candidate in the selected month");
-        }
+        // Fetch active holidays
+        List<Holiday> activeHolidays = holidayRepository.findByIsActiveTrue();
+        java.util.Set<LocalDate> holidayDates = activeHolidays.stream()
+                .map(Holiday::getHolidayDate)
+                .collect(java.util.stream.Collectors.toSet());
+        java.util.Map<LocalDate, String> holidayNames = activeHolidays.stream()
+                .collect(java.util.stream.Collectors.toMap(Holiday::getHolidayDate, Holiday::getHolidayName));
 
         // Group logs by date
         java.util.Map<LocalDate, java.util.List<Timesheet>> logMap = new java.util.HashMap<>();
@@ -178,6 +186,7 @@ public class ReportServiceImpl implements ReportService {
             } else {
                 DayOfWeek dayOfWeek = date.getDayOfWeek();
                 boolean isWeekend = (dayOfWeek == DayOfWeek.SATURDAY || dayOfWeek == DayOfWeek.SUNDAY);
+                boolean isHoliday = holidayDates.contains(date);
                 String dayStr = dayOfWeek.getDisplayName(TextStyle.FULL, Locale.ENGLISH);
                 rowBuilder.day(dayStr);
 
@@ -189,6 +198,14 @@ public class ReportServiceImpl implements ReportService {
                             .employeeName("-")
                             .clientCompany("-")
                             .status("");
+                } else if (isHoliday) {
+                    rowBuilder
+                            .logIn("-")
+                            .logOut("-")
+                            .totalHours("-")
+                            .employeeName("-")
+                            .clientCompany("-")
+                            .status(holidayNames.get(date));
                 } else {
                     java.util.List<Timesheet> dayLogs = logMap.get(date);
                     if (dayLogs != null && !dayLogs.isEmpty()) {
@@ -230,7 +247,7 @@ public class ReportServiceImpl implements ReportService {
                                 .totalHours("-")
                                 .employeeName(candidate.getName())
                                 .clientCompany(candidate.getClient() != null ? candidate.getClient().getName() : "N/A")
-                                .status("Holiday");
+                                .status("ABSENT");
                     }
                 }
             }
@@ -268,7 +285,7 @@ public class ReportServiceImpl implements ReportService {
             Font tableRowFont = FontFactory.getFont(FontFactory.HELVETICA, 8, new Color(0x33, 0x33, 0x33));
             Font tableRowWeekendFont = FontFactory.getFont(FontFactory.HELVETICA, 8, new Color(0x77, 0x77, 0x77));
             Font presentStatusFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8, new Color(0x1B, 0x5E, 0x20));
-            Font holidayStatusFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8, new Color(0xB7, 0x1C, 0x1C));
+            Font absentStatusFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8, new Color(0xB7, 0x1C, 0x1C));
 
             // Top Header Table (contains title/subtitle on left, logo on right)
             PdfPTable headerTable = new PdfPTable(2);
@@ -374,8 +391,8 @@ public class ReportServiceImpl implements ReportService {
                 Font statusFont = currentFont;
                 if ("Present".equalsIgnoreCase(row.getStatus())) {
                     statusFont = presentStatusFont;
-                } else if ("Holiday".equalsIgnoreCase(row.getStatus())) {
-                    statusFont = holidayStatusFont;
+                } else if ("ABSENT".equalsIgnoreCase(row.getStatus())) {
+                    statusFont = absentStatusFont;
                 }
                 table.addCell(createTableCell(row.getStatus(), statusFont, Element.ALIGN_CENTER, currentBg, gridBorderColor));
             }

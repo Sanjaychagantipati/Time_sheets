@@ -1,5 +1,5 @@
 import api, { isMockMode } from './api';
-import { getTimesheets, saveTimesheets, getUsers, saveUsers } from './mockDb';
+import { getTimesheets, saveTimesheets, getUsers, saveUsers, getHolidays, saveHolidays } from './mockDb';
 // eslint-disable-next-line no-unused-vars
 import { API_URL } from '../config/api';
 import { getDeviceMetadata } from '../utils/deviceMetadata';
@@ -940,6 +940,14 @@ export const timesheetService = {
       const labelDate = new Date(year, month - 1, 1);
       const monthLabel = labelDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
+      // Fetch active mock holidays
+      const activeHolidays = getHolidays().filter(h => h.active);
+      const holidayDates = new Set(activeHolidays.map(h => h.holidayDate));
+      const holidayNames = {};
+      activeHolidays.forEach(h => {
+        holidayNames[h.holidayDate] = h.holidayName;
+      });
+
       // Generate a mock text PDF content
       let pdfContent = `%PDF-1.4\n`;
       pdfContent += `% VERGIL REMNANT STAFFING SERVICES - MONTHLY ATTENDANCE PDF REPORT MOCK\n`;
@@ -966,12 +974,14 @@ export const timesheetService = {
         
         if (isWeekend) {
           pdfContent += `${dateStr} | ${dayName} | - | - | - | - | - | \n`;
+        } else if (holidayDates.has(dateStrIso)) {
+          pdfContent += `${dateStr} | ${dayName} | - | - | - | - | - | ${holidayNames[dateStrIso]}\n`;
         } else {
           const log = logMap[dateStrIso];
           if (log) {
             pdfContent += `${dateStr} | ${dayName} | ${log.clockIn || '-'} | ${log.clockOut || '-'} | ${log.hours.toFixed(2)} | ${candidate.name} | ${candidate.clientCompany || 'N/A'} | Present\n`;
           } else {
-            pdfContent += `${dateStr} | ${dayName} | - | - | - | ${candidate.name} | ${candidate.clientCompany || 'N/A'} | Holiday\n`;
+            pdfContent += `${dateStr} | ${dayName} | - | - | - | ${candidate.name} | ${candidate.clientCompany || 'N/A'} | ABSENT\n`;
           }
         }
       }
@@ -991,6 +1001,86 @@ export const timesheetService = {
       const safeName = candidateName ? candidateName.replace(/\s+/g, '_') : userId;
       triggerBlobDownload(response.data, `Vergil_Tempo_Attendance_${safeName}_${yearMonth}.pdf`);
       return true;
+    }
+  },
+
+  // --- HOLIDAY MANAGEMENT FUNCTIONS ---
+  getHolidaysList: async () => {
+    if (isMockMode()) {
+      return getHolidays();
+    } else {
+      const response = await api.get('/admin/holidays');
+      return response.data;
+    }
+  },
+
+  getActiveHolidaysList: async () => {
+    if (isMockMode()) {
+      return getHolidays().filter(h => h.active);
+    } else {
+      const response = await api.get('/holidays');
+      return response.data;
+    }
+  },
+
+  createHoliday: async (holidayData) => {
+    if (isMockMode()) {
+      const holidays = getHolidays();
+      const exists = holidays.some(h => h.holidayDate === holidayData.holidayDate);
+      if (exists) {
+        throw new Error(`A holiday already exists on date ${holidayData.holidayDate}`);
+      }
+      const newHoliday = {
+        id: 'h_' + Date.now(),
+        ...holidayData
+      };
+      holidays.push(newHoliday);
+      saveHolidays(holidays);
+      triggerSync();
+      return newHoliday;
+    } else {
+      const response = await api.post('/admin/holidays', holidayData);
+      triggerSync();
+      return response.data;
+    }
+  },
+
+  updateHoliday: async (id, holidayData) => {
+    if (isMockMode()) {
+      const holidays = getHolidays();
+      const exists = holidays.some(h => h.holidayDate === holidayData.holidayDate && h.id !== id);
+      if (exists) {
+        throw new Error(`A holiday already exists on date ${holidayData.holidayDate}`);
+      }
+      const index = holidays.findIndex(h => h.id === id);
+      if (index === -1) throw new Error('Holiday not found');
+      
+      const updatedHoliday = {
+        ...holidays[index],
+        ...holidayData
+      };
+      holidays[index] = updatedHoliday;
+      saveHolidays(holidays);
+      triggerSync();
+      return updatedHoliday;
+    } else {
+      const response = await api.put(`/admin/holidays/${id}`, holidayData);
+      triggerSync();
+      return response.data;
+    }
+  },
+
+  deleteHoliday: async (id) => {
+    if (isMockMode()) {
+      const holidays = getHolidays();
+      const filtered = holidays.filter(h => h.id !== id);
+      saveHolidays(filtered);
+      triggerSync();
+      return { message: 'Holiday deleted successfully' };
+    } else {
+      const response = await api.delete(`/admin/holidays/${id}`);
+      triggerSync();
+      return response.data;
     }
   }
 };

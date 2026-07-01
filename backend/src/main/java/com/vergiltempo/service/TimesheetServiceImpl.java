@@ -4,8 +4,10 @@ import com.vergiltempo.dto.*;
 import com.vergiltempo.entity.AttendanceSession;
 import com.vergiltempo.entity.Timesheet;
 import com.vergiltempo.entity.User;
+import com.vergiltempo.entity.Holiday;
 import com.vergiltempo.repository.TimesheetRepository;
 import com.vergiltempo.repository.UserRepository;
+import com.vergiltempo.repository.HolidayRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,13 +28,16 @@ public class TimesheetServiceImpl implements TimesheetService {
 
     private final UserRepository userRepository;
     private final TimesheetRepository timesheetRepository;
+    private final HolidayRepository holidayRepository;
     private final HttpServletRequest httpServletRequest;
 
     public TimesheetServiceImpl(UserRepository userRepository,
                                 TimesheetRepository timesheetRepository,
+                                HolidayRepository holidayRepository,
                                 HttpServletRequest httpServletRequest) {
         this.userRepository = userRepository;
         this.timesheetRepository = timesheetRepository;
+        this.holidayRepository = holidayRepository;
         this.httpServletRequest = httpServletRequest;
     }
 
@@ -78,6 +83,11 @@ public class TimesheetServiceImpl implements TimesheetService {
             LocalDateTime eventLdt = LocalDateTime.now().minus(request.getClientElapsedMs(), ChronoUnit.MILLIS);
             eventDate = eventLdt.toLocalDate();
             eventClockIn = eventLdt.toLocalTime().truncatedTo(ChronoUnit.SECONDS);
+        }
+
+        // Reject clock-in on active public/company holidays
+        if (holidayRepository.findByHolidayDate(eventDate).map(Holiday::getIsActive).orElse(false)) {
+            throw new IllegalStateException("Today is a company holiday. Clock-in is disabled.");
         }
 
         // Check if there is an active timesheet for the user

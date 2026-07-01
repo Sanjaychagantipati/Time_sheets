@@ -1,4 +1,4 @@
-import { getStoredUsers, getStoredTimesheets, saveStoredTimesheets, initDb } from '../data/mockData';
+import { getStoredUsers, getStoredTimesheets, saveStoredTimesheets, initDb, getStoredHolidays, saveStoredHolidays } from '../data/mockData';
 
 // Initialize LocalStorage Database if not exists
 export function initMockDb() {
@@ -19,4 +19,12 @@ export function getTimesheets() {
 
 export function saveTimesheets(timesheets) {
   saveStoredTimesheets(timesheets);
+}
+
+export function getHolidays() {
+  return getStoredHolidays();
+}
+
+export function saveHolidays(holidays) {
+  saveStoredHolidays(holidays);
 }

@@ -8,6 +8,7 @@ import com.vergiltempo.entity.Timesheet;
 import com.vergiltempo.entity.User;
 import com.vergiltempo.repository.TimesheetRepository;
 import com.vergiltempo.repository.UserRepository;
+import com.vergiltempo.repository.HolidayRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,6 +29,7 @@ public class TimesheetServiceTest {
 
     private UserRepository userRepository;
     private TimesheetRepository timesheetRepository;
+    private HolidayRepository holidayRepository;
     private HttpServletRequest httpServletRequest;
     private TimesheetService timesheetService;
 
@@ -38,8 +40,9 @@ public class TimesheetServiceTest {
     public void setUp() {
         userRepository = Mockito.mock(UserRepository.class);
         timesheetRepository = Mockito.mock(TimesheetRepository.class);
+        holidayRepository = Mockito.mock(HolidayRepository.class);
         httpServletRequest = Mockito.mock(HttpServletRequest.class);
-        timesheetService = new TimesheetServiceImpl(userRepository, timesheetRepository, httpServletRequest);
+        timesheetService = new TimesheetServiceImpl(userRepository, timesheetRepository, holidayRepository, httpServletRequest);
 
         client = Client.builder().id(1).name("Microsoft").code("MSFT").active(true).build();
         employee = User.builder()
