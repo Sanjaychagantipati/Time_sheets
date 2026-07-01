@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useState, useEffect, useContext } from 'react';
+import { createContext, useState, useEffect, useContext, useCallback, useMemo } from 'react';
 import { authService } from '../services/authService';
 
 export const AuthContext = createContext(null);
@@ -23,27 +23,27 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   // Login function - saves user to state and localStorage
-  const login = (userData) => {
+  const login = useCallback((userData) => {
     setUser(userData);
     localStorage.setItem('vt_user', JSON.stringify(userData));
-  };
+  }, []);
 
   // Logout function - clears state and localStorage
-  const logout = () => {
+  const logout = useCallback(() => {
     setUser(null);
     authService.logout();
-  };
+  }, []);
+
+  const authValue = useMemo(() => ({
+    user,
+    login,
+    logout,
+    isAuthenticated: !!user,
+    loading
+  }), [user, login, logout, loading]);
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        login,
-        logout,
-        isAuthenticated: !!user,
-        loading
-      }}
-    >
+    <AuthContext.Provider value={authValue}>
       {children}
     </AuthContext.Provider>
   );

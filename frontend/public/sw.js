@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vt-cache-v1';
+const CACHE_NAME = 'vt-cache-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -11,7 +11,9 @@ const STATIC_ASSETS = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS);
+      return cache.addAll(STATIC_ASSETS).catch((err) => {
+        console.warn('Pre-caching failed during installation:', err);
+      });
     })
   );
   self.skipWaiting();
@@ -23,6 +25,7 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         keys.map((key) => {
           if (key !== CACHE_NAME) {
+            console.log('Removing stale cache:', key);
             return caches.delete(key);
           }
         })
@@ -48,8 +51,15 @@ self.addEventListener('fetch', (event) => {
   // Handle HTML navigation requests (serve index.html for SPA routing offline)
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request).catch(() => {
-        return caches.match('/index.html');
+      fetch(event.request).catch(async () => {
+        const cachedResponse = await caches.match('/index.html');
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        return new Response('Vergil Tempo is offline. Please check your network connection.', {
+          status: 503,
+          headers: { 'Content-Type': 'text/html' }
+        });
       })
     );
     return;
@@ -59,17 +69,26 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       const fetchPromise = fetch(event.request).then((networkResponse) => {
-        if (networkResponse.status === 200) {
+        if (networkResponse && networkResponse.status === 200) {
           const responseClone = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(event.request, responseClone);
           });
         }
         return networkResponse;
-      }).catch(() => {
-        // Ignore network errors
+      }).catch((err) => {
+        console.debug('Network request failed for resource:', event.request.url, err);
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        throw err;
       });
       return cachedResponse || fetchPromise;
+    }).catch(() => {
+      return new Response('Asset unavailable offline', {
+        status: 404,
+        statusText: 'Offline Asset Unavailable'
+      });
     })
   );
 });

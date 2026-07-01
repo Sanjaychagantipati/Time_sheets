@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useState, useEffect, useContext } from 'react';
+import { createContext, useState, useEffect, useContext, useCallback, useMemo } from 'react';
 import api, { isMockMode } from '../services/api';
 import { useAuth } from './AuthContext';
 
@@ -44,7 +44,7 @@ export const ClientCompanyProvider = ({ children }) => {
     }
   }, [isAuthenticated, user]);
 
-  const addCompany = async (companyName) => {
+  const addCompany = useCallback(async (companyName) => {
     const trimmed = companyName.trim();
     if (!trimmed) {
       throw new Error('Company name cannot be empty');
@@ -69,9 +69,9 @@ export const ClientCompanyProvider = ({ children }) => {
       setCompanies(updated);
       localStorage.setItem('vt_client_companies', JSON.stringify(updated));
     }
-  };
+  }, [companies]);
 
-  const deleteCompany = async (companyName) => {
+  const deleteCompany = useCallback(async (companyName) => {
     if (isMockMode()) {
       const updated = companies.filter(c => c !== companyName);
       setCompanies(updated);
@@ -82,16 +82,16 @@ export const ClientCompanyProvider = ({ children }) => {
       setCompanies(updated);
       localStorage.setItem('vt_client_companies', JSON.stringify(updated));
     }
-  };
+  }, [companies]);
+
+  const companyValue = useMemo(() => ({
+    companies,
+    addCompany,
+    deleteCompany
+  }), [companies, addCompany, deleteCompany]);
 
   return (
-    <ClientCompanyContext.Provider
-      value={{
-        companies,
-        addCompany,
-        deleteCompany
-      }}
-    >
+    <ClientCompanyContext.Provider value={companyValue}>
       {children}
     </ClientCompanyContext.Provider>
   );

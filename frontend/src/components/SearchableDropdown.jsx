@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Search, ChevronDown, X } from 'lucide-react';
 
 export default function SearchableDropdown({
@@ -28,12 +28,17 @@ export default function SearchableDropdown({
   }, []);
 
   // Filter items based on search query
-  const filteredItems = items.filter(item =>
-    item.label.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredItems = useMemo(() => {
+    return items.filter(item =>
+      item.label.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [items, searchQuery]);
 
   // Find currently selected label
-  const selectedItem = items.find(item => item.value === selectedValue);
+  const selectedItem = useMemo(() => {
+    return items.find(item => item.value === selectedValue);
+  }, [items, selectedValue]);
+
   const displayValue = selectedItem ? selectedItem.label : '';
 
   // Reset highlighted index when filter changes
