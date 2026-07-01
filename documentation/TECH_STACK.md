@@ -88,8 +88,8 @@ graph LR
 
 ### 4.1 Data Flow of a Clock-In Event
 1.  **UI Action:** Employee clicks "Clock In" on the React interface.
-2.  **API Call:** Axios posts latitude/longitude metadata to `/api/timesheets/clock-in`, injecting the JWT token inside the `Authorization` header.
+2.  **API Call:** Axios posts metadata to `/api/timesheets/clock-in`, injecting the JWT token inside the `Authorization` header.
 3.  **Security Filter:** Spring Security interceptor parses the JWT token, extracts username/roles, and validates authentication status.
-4.  **Business logic:** Controller delegates request to database service, validating that no previous active shift is registered.
-5.  **Persistence:** A new timesheet record is inserted into the PostgreSQL `timesheets` table with current server time.
-6.  **Response:** The server returns `201 Created` with log details; React changes UI state to clocked-in and starts the ticker.
+4.  **Business logic:** Controller delegates request to database service, validating that no previous active session is running for the employee.
+5.  **Persistence:** A new session record is inserted into the PostgreSQL `attendance_sessions` table linked to today's timesheet (creating the timesheet parent first if it is the first check-in of the day).
+6.  **Response:** The server returns `201 Created` with session details; React changes UI state to clocked-in and starts the ticker.

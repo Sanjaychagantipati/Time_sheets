@@ -37,10 +37,18 @@ erDiagram
         TEXT notes
         TIMESTAMP created_at
     }
+    ATTENDANCE_SESSIONS {
+        VARCHAR id PK
+        VARCHAR timesheet_id FK
+        TIME clock_in
+        TIME clock_out
+        DECIMAL hours
+    }
 
     CLIENTS ||--o{ USERS : "employs"
     CLIENTS ||--o{ TIMESHEETS : "billed_to"
     USERS ||--o{ TIMESHEETS : "logs"
+    TIMESHEETS ||--o{ ATTENDANCE_SESSIONS : "contains"
 ```
 
 ---
@@ -91,6 +99,18 @@ Stores individual work history records containing clock timestamps, notes, and l
 | `notes` | TEXT | NULLABLE | Text notes describing work completed (max 250 chars) |
 | `created_at` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Log insertion timestamp |
 
+### 2.4 Table: `attendance_sessions`
+Stores individual work session details within a daily timesheet to support multiple clock-ins per day.
+*   **Purpose:** Detailed segment-by-segment duration tracking.
+
+| Column Name | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | VARCHAR(36) | PRIMARY KEY | Unique session UUID |
+| `timesheet_id` | VARCHAR(36) | NOT NULL, FOREIGN KEY | Links to `timesheets(id)` |
+| `clock_in` | TIME | NOT NULL | Shift segment start timestamp (HH:MM:SS) |
+| `clock_out` | TIME | NULLABLE | Shift segment end timestamp (HH:MM:SS) |
+| `hours` | DECIMAL(5, 2) | NULLABLE | Shift segment duration, NULL if session in progress |
+
 ---
 
 ## 3. Database Indexes
@@ -100,6 +120,7 @@ To speed up dashboard loading, filtering, and report generations, the following 
 1.  **`idx_timesheets_user_date`**: On `timesheets(user_id, date)`. Speeds up retrieval of individual employee logs.
 2.  **`idx_timesheets_client_date`**: On `timesheets(client_id, date)`. Optimizes admin reports filtering by client company.
 3.  **`idx_timesheets_date`**: On `timesheets(date)`. Speeds up search results for date range filters.
+4.  **`idx_attendance_sessions_timesheet`**: On `attendance_sessions(timesheet_id)`. Speeds up retrieval of sessions for a given timesheet.
 
 ---
 
@@ -141,10 +162,20 @@ CREATE TABLE timesheets (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Create Attendance Sessions Table
+CREATE TABLE attendance_sessions (
+    id VARCHAR(36) PRIMARY KEY,
+    timesheet_id VARCHAR(36) NOT NULL REFERENCES timesheets(id) ON DELETE CASCADE,
+    clock_in TIME NOT NULL,
+    clock_out TIME DEFAULT NULL,
+    hours DECIMAL(5, 2) DEFAULT NULL
+);
+
 -- Indexes for performance optimization
 CREATE INDEX idx_timesheets_user_date ON timesheets(user_id, date);
 CREATE INDEX idx_timesheets_client_date ON timesheets(client_id, date);
 CREATE INDEX idx_timesheets_date ON timesheets(date);
+CREATE INDEX idx_attendance_sessions_timesheet ON attendance_sessions(timesheet_id);
 
 -- Seed Initial Client Data
 INSERT INTO clients (name, code) VALUES 
