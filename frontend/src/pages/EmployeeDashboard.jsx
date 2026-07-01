@@ -37,7 +37,7 @@ export default function EmployeeDashboard() {
   const checkStatus = useCallback(async () => {
     if (!user) return;
     try {
-      const res = await timesheetService.getActiveStatus(user.id);
+      const res = await timesheetService.getActiveClockIn(user.id);
       setIsClockedIn(res.hasActive);
       setActiveLog(res.log);
     } catch (err) {
@@ -155,7 +155,7 @@ export default function EmployeeDashboard() {
             <div className="bg-[#111111] border border-[#2A2A2A] p-4.5 rounded-2xl shadow-xl flex flex-col gap-1 text-center sm:text-left transition-all duration-300 hover:border-[#FF7A00]/20">
               <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Today's Total Hours</span>
               <span className="text-lg font-black text-[#FF7A00] font-mono mt-1">
-                {todayLog ? `${todayLog.hours.toFixed(2)} hrs` : '0.00 hrs'}
+                {todayLog ? `${(todayLog.hours || 0).toFixed(2)} hrs` : '0.00 hrs'}
               </span>
             </div>
           </div>
@@ -213,7 +213,9 @@ export default function EmployeeDashboard() {
                           </div>
                           
                           <div className="text-right flex flex-col gap-0.5">
-                            <div className="text-sm font-black text-white">{log.hours ? `${log.hours.toFixed(2)} hrs` : 'Active'}</div>
+                            <div className="text-sm font-black text-white">
+                              {log.hours !== null && log.hours !== undefined ? `${Number(log.hours).toFixed(2)} hrs` : 'Active'}
+                            </div>
                             <div className="text-[9px] text-gray-400 font-bold font-mono">
                               In: {formatTime12h(log.clockIn)} {log.clockOut ? `| Out: ${formatTime12h(log.clockOut)}` : ''}
                             </div>
