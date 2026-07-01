@@ -18,8 +18,9 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, String> {
 
     List<Timesheet> findByDateBetween(LocalDate startDate, LocalDate endDate);
 
-    // Find logs for a specific user ordered by date (newest first)
-    List<Timesheet> findByUserOrderByDateDesc(User user);
+    // Find logs for a specific user ordered by date (newest first) with fetch join optimization
+    @Query("SELECT DISTINCT t FROM Timesheet t JOIN FETCH t.client c LEFT JOIN FETCH t.sessions s WHERE t.user = :user ORDER BY t.date DESC")
+    List<Timesheet> findByUserOrderByDateDescFetchClientAndSessions(@Param("user") User user);
 
 
     // Find the currently active shift for a user (where clockOut is NULL)
@@ -36,7 +37,7 @@ public interface TimesheetRepository extends JpaRepository<Timesheet, String> {
     @Query("SELECT COALESCE(SUM(t.hours), 0) FROM Timesheet t WHERE t.date = :date AND t.clockOut IS NOT NULL")
     BigDecimal sumHoursByDate(@Param("date") LocalDate date);
 
-    @Query("SELECT t FROM Timesheet t JOIN FETCH t.user u JOIN FETCH t.client c WHERE " +
+    @Query("SELECT DISTINCT t FROM Timesheet t JOIN FETCH t.user u JOIN FETCH t.client c LEFT JOIN FETCH t.sessions s WHERE " +
            "(:userId IS NULL OR u.id = :userId) AND " +
            "(:client IS NULL OR c.name = :client) AND " +
            "(:startDate IS NULL OR t.date >= :startDate) AND " +

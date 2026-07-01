@@ -26,6 +26,8 @@ import java.util.stream.Collectors;
 @Transactional
 public class TimesheetServiceImpl implements TimesheetService {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(TimesheetServiceImpl.class);
+
     private final UserRepository userRepository;
     private final TimesheetRepository timesheetRepository;
     private final HolidayRepository holidayRepository;
@@ -237,10 +239,8 @@ public class TimesheetServiceImpl implements TimesheetService {
 
         Timesheet saved = timesheetRepository.save(timesheet);
 
-        System.out.println("Clock Out Success");
-        System.out.println("Candidate ID: " + user.getId());
         long submittedCount = timesheetRepository.countDistinctUserByDateAndClockOutIsNotNull(LocalDate.now());
-        System.out.println("Today's Submitted Count: " + submittedCount);
+        log.info("Clock Out Success. Candidate ID: {}, Today's Submitted Count: {}", user.getId(), submittedCount);
 
         return ClockOutResponse.builder()
                 .message("Clocked out successfully")
@@ -259,7 +259,7 @@ public class TimesheetServiceImpl implements TimesheetService {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
 
-        List<Timesheet> logs = timesheetRepository.findByUserOrderByDateDesc(user);
+        List<Timesheet> logs = timesheetRepository.findByUserOrderByDateDescFetchClientAndSessions(user);
         return logs.stream()
                 .map(this::mapToTimesheetLogDto)
                 .collect(Collectors.toList());

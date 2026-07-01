@@ -16,6 +16,8 @@ import java.util.Map;
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminController {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(AdminController.class);
+
     private final AdminService adminService;
 
     public AdminController(AdminService adminService) {
@@ -25,7 +27,7 @@ public class AdminController {
     @GetMapping("/stats")
     public ResponseEntity<AdminStatsResponse> getStats() {
         AdminStatsResponse stats = adminService.getStats();
-        System.out.println(stats.getTimesheetsSubmittedToday());
+        log.debug("Stats retrieved. Submitted today: {}", stats.getTimesheetsSubmittedToday());
         return ResponseEntity.ok(stats);
     }
 

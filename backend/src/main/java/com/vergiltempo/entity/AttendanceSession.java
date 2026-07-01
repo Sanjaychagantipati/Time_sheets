@@ -6,7 +6,9 @@ import java.math.BigDecimal;
 import java.time.LocalTime;
 
 @Entity
-@Table(name = "attendance_sessions")
+@Table(name = "attendance_sessions", indexes = {
+    @Index(name = "idx_sessions_timesheet_id", columnList = "timesheet_id")
+})
 public class AttendanceSession {
 
     @Id

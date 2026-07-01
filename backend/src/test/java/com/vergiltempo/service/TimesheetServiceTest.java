@@ -168,7 +168,7 @@ public class TimesheetServiceTest {
                 .build();
 
         when(userRepository.findByUsername("john")).thenReturn(Optional.of(employee));
-        when(timesheetRepository.findByUserOrderByDateDesc(employee)).thenReturn(Collections.singletonList(t));
+        when(timesheetRepository.findByUserOrderByDateDescFetchClientAndSessions(employee)).thenReturn(Collections.singletonList(t));
 
         List<TimesheetLogDto> logs = timesheetService.getMyLogs("john");
 

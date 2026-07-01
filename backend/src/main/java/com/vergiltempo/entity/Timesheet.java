@@ -8,7 +8,10 @@ import java.time.LocalTime;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "timesheets")
+@Table(name = "timesheets", indexes = {
+    @Index(name = "idx_timesheets_user_date", columnList = "user_id, date"),
+    @Index(name = "idx_timesheets_date", columnList = "date")
+})
 public class Timesheet {
 
     @Id
