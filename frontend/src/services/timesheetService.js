@@ -902,14 +902,13 @@ export const timesheetService = {
         filtered = filtered.filter((t) => t.date <= filters.endDate);
       }
 
-      let csv = 'Candidate Name,Client Company,Hourly Rate,Currency,Date,Clock In,Clock Out,Total Hours,Work Notes\n';
+      let csv = 'Candidate Name,Client Company,Date,Clock In,Clock Out,Total Hours,Work Notes\n';
       filtered.forEach((log) => {
-        const user = users.find((u) => u.id === log.userId || String(u.id) === String(log.userId)) || { name: 'Unknown', rate: 0 };
+        const user = users.find((u) => u.id === log.userId || String(u.id) === String(log.userId)) || { name: 'Unknown' };
         const cleanNotes = log.notes ? `"${log.notes.replace(/"/g, '""')}"` : '""';
         const hoursStr = log.clockOut ? log.hours : 'Active Clock';
         const clockOutTime = log.clockOut || 'N/A';
-        const currency = getCandidateCurrency(user.id || log.userId);
-        csv += `"${user.name}","${log.clientCompany || 'N/A'}",${user.rate || 0},"${currency}","${log.date}","${log.clockIn}","${clockOutTime}",${hoursStr},${cleanNotes}\n`;
+        csv += `"${user.name}","${log.clientCompany || 'N/A'}","${log.date}","${log.clockIn}","${clockOutTime}",${hoursStr},${cleanNotes}\n`;
       });
 
       triggerFileDownload(csv, `Vergil_Tempo_Timesheets_${new Date().toISOString().slice(0, 10)}.csv`);

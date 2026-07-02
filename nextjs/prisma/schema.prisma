@@ -1,0 +1,75 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model attendance_sessions {
+  id           String      @id @db.VarChar(36)
+  timesheet_id String      @db.VarChar(36)
+  clock_in     DateTime    @db.Time(6)
+  clock_out    DateTime?   @db.Time(6)
+  hours        Decimal?    @db.Decimal(4, 2)
+  timesheets   timesheets @relation(fields: [timesheet_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model clients {
+  id         Int          @id @default(autoincrement())
+  name       String       @db.VarChar(100)
+  code       String       @unique @db.VarChar(20)
+  active     Boolean?     @default(true)
+  created_at DateTime?    @default(now()) @db.Timestamp(6)
+  timesheets timesheets[]
+  users      users[]
+}
+
+model holidays {
+  id           String    @id @db.VarChar(36)
+  holiday_name String    @db.VarChar(100)
+  holiday_date DateTime  @unique @db.Date
+  is_active    Boolean   @default(true)
+  created_at   DateTime? @default(now()) @db.Timestamp(6)
+  description  String?   @db.VarChar(255)
+  holiday_type String    @db.VarChar(50)
+  updated_at   DateTime? @db.Timestamp(6)
+}
+
+model timesheets {
+  id                  String                @id @db.VarChar(36)
+  user_id             String                @db.VarChar(36)
+  client_id           Int
+  date                DateTime              @db.Date
+  clock_in            DateTime              @db.Time(6)
+  clock_out           DateTime?             @db.Time(6)
+  hours               Decimal?              @db.Decimal(4, 2)
+  notes               String?
+  location            String?               @db.VarChar(255)
+  created_at          DateTime?             @default(now()) @db.Timestamp(6)
+  ip_address          String?               @db.VarChar(45)
+  user_agent          String?
+  browser             String?               @db.VarChar(50)
+  operating_system    String?               @db.VarChar(50)
+  device_type         String?               @db.VarChar(30)
+  screen_resolution   String?               @db.VarChar(20)
+  attendance_sessions attendance_sessions[]
+  clients             clients               @relation(fields: [client_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users               users                 @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model users {
+  id            String       @id @db.VarChar(36)
+  name          String       @db.VarChar(100)
+  username      String       @unique @db.VarChar(50)
+  password_hash String       @db.VarChar(255)
+  role          String       @db.VarChar(20)
+  client_id     Int?
+  hourly_rate   Decimal      @default(0.00) @db.Decimal(8, 2)
+  created_at    DateTime?    @default(now()) @db.Timestamp(6)
+  timesheets    timesheets[]
+  clients       clients?     @relation(fields: [client_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+}

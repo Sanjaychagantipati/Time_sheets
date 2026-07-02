@@ -82,3 +82,11 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* White calendar indicator icons for date and month pickers */
+input[type="month"]::-webkit-calendar-picker-indicator,
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  cursor: pointer;
+}
+

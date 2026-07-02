@@ -1,20 +1,30 @@
 import { useState, useEffect } from 'react';
 import { CalendarPlus, Edit3, X } from 'lucide-react';
 import { timesheetService } from '../../services/timesheetService';
-import { useClientCompanies } from '../../context/ClientCompanyContext';
-import SearchableDropdown from '../SearchableDropdown';
+import Autocomplete from '../Autocomplete';
 
 export default function EditLogModal({ isOpen, logId, onClose, onSuccess, setToast }) {
-  const { companies } = useClientCompanies();
   const [employees, setEmployees] = useState([]);
   const [userId, setUserId] = useState('');
   const [date, setDate] = useState('');
-  const [clockIn, setClockIn] = useState('09:00:00');
-  const [clockOut, setClockOut] = useState('17:00:00');
+  const [clockIn, setClockIn] = useState('');
+  const [clockOut, setClockOut] = useState('');
   const [notes, setNotes] = useState('');
-  const [clientCompany, setClientCompany] = useState(companies[0] || '');
+  const [clientCompany, setClientCompany] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // Helper to calculate hours dynamically
+  const calculateHours = (inStr, outStr) => {
+    if (!inStr || !outStr) return null;
+    const [inH, inM, inS = 0] = inStr.split(':').map(Number);
+    const [outH, outM, outS = 0] = outStr.split(':').map(Number);
+    const inMin = inH * 60 + inM + inS / 60;
+    const outMin = outH * 60 + outM + outS / 60;
+    const diffMin = outMin - inMin;
+    if (diffMin < 0) return null;
+    return parseFloat((diffMin / 60).toFixed(2));
+  };
 
   // Fetch candidate list on open
   useEffect(() => {
@@ -24,7 +34,8 @@ export default function EditLogModal({ isOpen, logId, onClose, onSuccess, setToa
         const list = await timesheetService.getEmployeesList();
         setEmployees(list);
         if (list.length > 0 && !logId) {
-          setUserId(list[0].id);
+          // Keep empty initially for manual creation
+          setUserId('');
         }
       } catch (err) {
         console.error(err);
@@ -38,10 +49,10 @@ export default function EditLogModal({ isOpen, logId, onClose, onSuccess, setToa
     if (!isOpen || !logId) {
       // Manual Add Defaults
       setDate(new Date().toISOString().split('T')[0]);
-      setClockIn('09:00:00');
-      setClockOut('17:00:00');
+      setClockIn('');
+      setClockOut('');
       setNotes('');
-      setClientCompany(companies[0] || '');
+      setClientCompany('');
       return;
     }
 
@@ -53,10 +64,10 @@ export default function EditLogModal({ isOpen, logId, onClose, onSuccess, setToa
         if (log) {
           setUserId(log.userId);
           setDate(log.date);
-          setClockIn(log.clockIn);
+          setClockIn(log.clockIn || '');
           setClockOut(log.clockOut || '');
           setNotes(log.notes || '');
-          setClientCompany(log.clientCompany || companies[0] || '');
+          setClientCompany(log.clientCompany || '');
         }
       } catch (err) {
         console.error(err);
@@ -65,23 +76,48 @@ export default function EditLogModal({ isOpen, logId, onClose, onSuccess, setToa
       }
     }
     loadLogDetails();
-  }, [isOpen, logId, companies]);
+  }, [isOpen, logId]);
 
-  // Initialize client company default selection
+  // Auto-populate client company based on selected candidate during creation
   useEffect(() => {
-    if (companies.length > 0 && !clientCompany) {
-      setClientCompany(companies[0]);
+    if (logId) return; // Skip overwrite when editing an existing log
+    if (!userId) {
+      setClientCompany('');
+      return;
     }
-  }, [companies, clientCompany]);
+    const selectedEmp = employees.find((emp) => emp.id === userId);
+    if (selectedEmp) {
+      setClientCompany(selectedEmp.clientCompany || 'N/A');
+    }
+  }, [userId, employees, logId]);
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const trimmedClientCompany = clientCompany.trim();
-    if (!trimmedClientCompany) {
-      setToast({ message: 'Client Company selection is required.', type: 'error' });
+
+    if (!userId) {
+      setToast({ message: 'Candidate selection is required.', type: 'error' });
       return;
+    }
+
+    const trimmedClientCompany = clientCompany.trim();
+    if (!trimmedClientCompany || trimmedClientCompany === 'N/A') {
+      setToast({ message: 'Selected candidate must belong to a valid client company.', type: 'error' });
+      return;
+    }
+
+    if (!clockIn && !clockOut) {
+      setToast({ message: 'At least one of Clock In or Clock Out must be provided.', type: 'error' });
+      return;
+    }
+
+    if (clockIn && clockOut) {
+      const hrs = calculateHours(clockIn, clockOut);
+      if (hrs === null) {
+        setToast({ message: 'Clock-out time cannot be earlier than clock-in time.', type: 'error' });
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -89,7 +125,7 @@ export default function EditLogModal({ isOpen, logId, onClose, onSuccess, setToa
       const payload = {
         userId,
         date,
-        clockIn,
+        clockIn: clockIn || null,
         clockOut: clockOut || null,
         notes,
         clientCompany: trimmedClientCompany,
@@ -100,14 +136,15 @@ export default function EditLogModal({ isOpen, logId, onClose, onSuccess, setToa
         setToast({ message: 'Timesheet record adjusted successfully.', type: 'success' });
       } else {
         await timesheetService.createManualLog(payload);
-        setToast({ message: 'Manual timesheet entry created.', type: 'success' });
+        setToast({ message: 'Manual timesheet entry saved successfully.', type: 'success' });
       }
 
       onSuccess();
       onClose();
     } catch (err) {
       console.error(err);
-      setToast({ message: 'Failed to save timesheet record.', type: 'error' });
+      const errMsg = err.response?.data?.error || err.message || 'Failed to save timesheet record.';
+      setToast({ message: errMsg, type: 'error' });
     } finally {
       setSubmitting(false);
     }
@@ -118,24 +155,24 @@ export default function EditLogModal({ isOpen, logId, onClose, onSuccess, setToa
       {/* Overlay backdrop */}
       <div className="absolute inset-0 bg-[#0b0f19]/80 backdrop-blur-sm" onClick={onClose}></div>
 
-      {/* Card panel */}
-      <div className="relative z-10 w-full max-w-lg glass bg-[#121826]/90 border border-white/5 rounded-2xl overflow-visible shadow-2xl animate-scale-in">
-        <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between rounded-t-2xl">
-          <h3 className="text-base font-bold flex items-center gap-2">
+      {/* Card panel (max-w-md, high-density professional layout) */}
+      <div className="relative z-10 w-full max-w-md glass bg-[#121826]/95 border border-white/5 rounded-2xl overflow-visible shadow-2xl animate-scale-in mx-auto">
+        <div className="px-5 py-3.5 border-b border-white/5 flex items-center justify-between rounded-t-2xl bg-black/10">
+          <h3 className="text-sm font-bold flex items-center gap-2 text-white">
             {logId ? (
               <>
-                <Edit3 size={16} className="text-[#FF7A00]" />
+                <Edit3 size={15} className="text-[#FF7A00]" />
                 <span>Adjust Timesheet Record</span>
               </>
             ) : (
               <>
-                <CalendarPlus size={16} className="text-[#FF7A00]" />
+                <CalendarPlus size={15} className="text-[#FF7A00]" />
                 <span>Add Manual Timesheet Entry</span>
               </>
             )}
           </h3>
           <button onClick={onClose} className="p-1 text-gray-400 hover:text-white rounded transition cursor-pointer" aria-label="Close modal">
-            <X size={16} />
+            <X size={15} />
           </button>
         </div>
 
@@ -146,16 +183,18 @@ export default function EditLogModal({ isOpen, logId, onClose, onSuccess, setToa
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
-            <div className="p-6 flex flex-col gap-4">
+            <div className="p-5 flex flex-col gap-3.5">
               
-              <div className="flex flex-col gap-1.5 relative">
-                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Candidate</label>
-                <SearchableDropdown
+              <div className="flex flex-col gap-1 relative">
+                <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Candidate</label>
+                <Autocomplete
                   id="edit-log-candidate"
-                  placeholder="Select Candidate..."
+                  placeholder="Select or search Candidate..."
+                  heightClass="h-11"
                   items={employees.map((emp) => ({
                     value: emp.id,
-                    label: `${emp.name} (${emp.clientCompany || 'N/A'})`
+                    label: emp.name,
+                    subtext: emp.clientCompany || 'No Client Assigned'
                   }))}
                   selectedValue={userId}
                   onSelect={(val) => setUserId(val)}
@@ -163,8 +202,8 @@ export default function EditLogModal({ isOpen, logId, onClose, onSuccess, setToa
                 />
               </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="edit-log-date" className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Date</label>
+              <div className="flex flex-col gap-1">
+                <label htmlFor="edit-log-date" className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Date</label>
                 <input
                   id="edit-log-date"
                   name="date"
@@ -172,26 +211,25 @@ export default function EditLogModal({ isOpen, logId, onClose, onSuccess, setToa
                   required
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="bg-[#1A1A1A] border border-[#2A2A2A] text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#FF7A00] focus:ring-1 focus:ring-[#FF7A00] transition"
+                  className="bg-[#1A1A1A] border border-[#2A2A2A] text-white rounded-xl px-4 h-11 text-sm focus:outline-none focus:border-[#FF7A00] focus:ring-1 focus:ring-[#FF7A00] transition"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <label htmlFor="edit-log-clockin" className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Clock In Time</label>
+              <div className="grid grid-cols-2 gap-3.5">
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="edit-log-clockin" className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Clock In Time</label>
                   <input
                     id="edit-log-clockin"
                     name="clockIn"
                     type="time"
-                    required
                     step="1"
                     value={clockIn}
                     onChange={(e) => setClockIn(e.target.value)}
-                    className="bg-[#1A1A1A] border border-[#2A2A2A] text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#FF7A00] focus:ring-1 focus:ring-[#FF7A00] transition"
+                    className="bg-[#1A1A1A] border border-[#2A2A2A] text-white rounded-xl px-4 h-11 text-sm focus:outline-none focus:border-[#FF7A00] focus:ring-1 focus:ring-[#FF7A00] transition"
                   />
                 </div>
-                <div className="flex flex-col gap-1.5">
-                  <label htmlFor="edit-log-clockout" className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Clock Out Time</label>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="edit-log-clockout" className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Clock Out Time</label>
                   <input
                     id="edit-log-clockout"
                     name="clockOut"
@@ -199,14 +237,49 @@ export default function EditLogModal({ isOpen, logId, onClose, onSuccess, setToa
                     step="1"
                     value={clockOut}
                     onChange={(e) => setClockOut(e.target.value)}
-                    placeholder="Still active (leave blank)"
-                    className="bg-[#1A1A1A] border border-[#2A2A2A] text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#FF7A00] focus:ring-1 focus:ring-[#FF7A00] transition"
+                    placeholder="Leave blank"
+                    className="bg-[#1A1A1A] border border-[#2A2A2A] text-white rounded-xl px-4 h-11 text-sm focus:outline-none focus:border-[#FF7A00] focus:ring-1 focus:ring-[#FF7A00] transition"
                   />
                 </div>
               </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="edit-log-notes" className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Work Notes / Tasks</label>
+              {/* Dynamic duration alerts based on scenario */}
+              {(() => {
+                if (clockIn && clockOut) {
+                  const hrs = calculateHours(clockIn, clockOut);
+                  if (hrs === null) {
+                    return (
+                      <div className="text-[10px] text-rose-400 font-semibold flex items-center gap-1.5 bg-rose-500/10 border border-rose-500/20 px-3 py-2 rounded-xl">
+                        <span>Clock-out time cannot be earlier than clock-in time.</span>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="text-[10px] text-emerald-400 font-semibold flex items-center justify-between bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 rounded-xl">
+                      <span>Calculated Duration:</span>
+                      <span className="text-xs font-bold text-white">{hrs} hours</span>
+                    </div>
+                  );
+                } else if (clockIn) {
+                  return (
+                    <div className="text-[10px] text-[#FF7A00] font-semibold flex items-center justify-between bg-[#FF7A00]/10 border border-[#FF7A00]/20 px-3 py-2 rounded-xl">
+                      <span>Calculated Duration:</span>
+                      <span>Active / Ongoing</span>
+                    </div>
+                  );
+                } else if (clockOut) {
+                  return (
+                    <div className="text-[10px] text-[#0ea5e9] font-semibold flex items-center justify-between bg-[#0ea5e9]/10 border border-[#0ea5e9]/20 px-3 py-2 rounded-xl">
+                      <span>Calculated Duration:</span>
+                      <span>Pending Clock In lookup</span>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+
+              <div className="flex flex-col gap-1">
+                <label htmlFor="edit-log-notes" className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Work Notes / Tasks</label>
                 <textarea
                   id="edit-log-notes"
                   name="notes"
@@ -218,37 +291,34 @@ export default function EditLogModal({ isOpen, logId, onClose, onSuccess, setToa
                 />
               </div>
 
-              <div className="flex flex-col gap-1.5 relative">
-                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Client Company</label>
-                <SearchableDropdown
-                  id="edit-log-client"
-                  placeholder="Select Company..."
-                  items={companies.map((c) => ({
-                    value: c,
-                    label: c
-                  }))}
-                  selectedValue={clientCompany}
-                  onSelect={(val) => setClientCompany(val)}
-                  direction="up"
+              <div className="flex flex-col gap-1">
+                <label htmlFor="edit-log-client-display" className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Client Company</label>
+                <input
+                  id="edit-log-client-display"
+                  type="text"
+                  readOnly
+                  disabled
+                  value={clientCompany || 'N/A'}
+                  className="w-full h-11 bg-[#1A1A1A] border border-[#2A2A2A] text-gray-400 rounded-xl px-4 text-sm cursor-not-allowed opacity-75 focus:ring-0 focus:border-[#2A2A2A]"
                 />
               </div>
 
             </div>
 
-            <div className="px-6 py-4 border-t border-white/5 flex justify-end gap-3 bg-black/10 rounded-b-2xl">
+            <div className="px-5 py-3.5 border-t border-white/5 flex justify-end gap-3 bg-black/10 rounded-b-2xl">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 border border-white/10 hover:border-gray-500 text-gray-300 hover:text-white rounded-xl text-sm font-semibold transition cursor-pointer"
+                className="px-4 py-2 border border-white/10 hover:border-gray-500 text-gray-300 hover:text-white rounded-xl text-xs font-semibold transition cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={submitting}
-                className="px-4 py-2 bg-[#FF7A00] hover:bg-[#FF8C1A] disabled:bg-[#FF7A00]/50 text-white rounded-xl text-sm font-semibold shadow-lg shadow-[#FF7A00]/20 transition cursor-pointer"
+                className="px-4 py-2 bg-[#FF7A00] hover:bg-[#FF8C1A] disabled:bg-[#FF7A00]/50 text-white rounded-xl text-xs font-semibold shadow-lg shadow-[#FF7A00]/20 transition cursor-pointer"
               >
-                {submitting ? 'Saving...' : logId ? 'Save Changes' : 'Add Entry'}
+                {submitting ? 'Saving...' : logId ? 'Save Changes' : 'Save Entry'}
               </button>
             </div>
           </form>

@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { UserPlus, X, Eye, EyeOff } from 'lucide-react';
 import { timesheetService } from '../../services/timesheetService';
 import { useClientCompanies } from '../../context/ClientCompanyContext';
-import SearchableDropdown from '../SearchableDropdown';
+import Autocomplete from '../Autocomplete';
 
 export default function CreateEmployeeModal({ isOpen, onClose, onSuccess, setToast, onCreateCompanyClick }) {
   const { companies } = useClientCompanies();
@@ -11,17 +11,10 @@ export default function CreateEmployeeModal({ isOpen, onClose, onSuccess, setToa
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState('employee');
-  const [clientCompany, setClientCompany] = useState(companies[0] || '');
+  const [clientCompany, setClientCompany] = useState('');
   const [currency, setCurrency] = useState('USD');
-  const [rate, setRate] = useState('25.00');
+  const [rate, setRate] = useState('0.00');
   const [submitting, setSubmitting] = useState(false);
-
-  // Initialize client company default selection
-  useEffect(() => {
-    if (companies.length > 0 && !clientCompany) {
-      setClientCompany(companies[0]);
-    }
-  }, [companies, clientCompany]);
 
   if (!isOpen) return null;
 
@@ -50,10 +43,7 @@ export default function CreateEmployeeModal({ isOpen, onClose, onSuccess, setToa
       setToast({ message: 'Client Company selection is required', type: 'error' });
       return;
     }
-    if (isNaN(parsedRate) || parsedRate <= 0) {
-      setToast({ message: 'Hourly Rate must be greater than 0', type: 'error' });
-      return;
-    }
+    // No rate validation needed as it is removed from the project
 
     setSubmitting(true);
     try {
@@ -75,7 +65,7 @@ export default function CreateEmployeeModal({ isOpen, onClose, onSuccess, setToa
       setPassword('');
       setShowPassword(false);
       setRole('employee');
-      setClientCompany(companies[0] || '');
+      setClientCompany('');
       setCurrency('USD');
       setRate('25.00');
       
@@ -193,48 +183,16 @@ export default function CreateEmployeeModal({ isOpen, onClose, onSuccess, setToa
                     </button>
                   </div>
                 ) : (
-                  <SearchableDropdown
+                  <Autocomplete
                     id="create-candidate-client"
                     placeholder="Search company..."
                     items={companies.map((c) => ({ value: c, label: c }))}
                     selectedValue={clientCompany}
                     onSelect={(val) => setClientCompany(val)}
-                    direction="up"
                   />
                 )}
               </div>
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="create-candidate-rate" className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Hourly Rate</label>
-                <div className="flex gap-3 w-full">
-                  <div className="w-1/3">
-                    <select
-                      id="create-candidate-currency"
-                      name="currency"
-                      value={currency}
-                      onChange={(e) => setCurrency(e.target.value)}
-                      className="w-full h-14 bg-[#1A1A1A] border border-[#2A2A2A] text-white rounded-xl px-4 text-sm focus:outline-none focus:border-[#FF7A00] focus:ring-1 focus:ring-[#FF7A00] transition cursor-pointer"
-                    >
-                      <option value="USD">$</option>
-                      <option value="INR">₹</option>
-                      <option value="EUR">€</option>
-                    </select>
-                  </div>
-                  <div className="w-2/3">
-                    <input
-                      id="create-candidate-rate"
-                      name="rate"
-                      type="number"
-                      required
-                      min="0.01"
-                      step="0.01"
-                      value={rate}
-                      onChange={(e) => setRate(e.target.value)}
-                      placeholder="e.g. 25.00"
-                      className="w-full h-14 bg-[#1A1A1A] border border-[#2A2A2A] text-white rounded-xl px-4 text-sm focus:outline-none focus:border-[#FF7A00] focus:ring-1 focus:ring-[#FF7A00] transition"
-                    />
-                  </div>
-                </div>
-              </div>
+              {/* Hourly Rate removed from project */}
             </div>
 
           </div>

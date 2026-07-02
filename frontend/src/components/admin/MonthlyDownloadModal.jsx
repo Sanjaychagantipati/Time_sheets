@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { FileDown, X } from 'lucide-react';
 import { timesheetService } from '../../services/timesheetService';
+import Autocomplete from '../Autocomplete';
 
 export default function MonthlyDownloadModal({ isOpen, onClose, setToast }) {
   const [employees, setEmployees] = useState([]);
   const [candidateName, setCandidateName] = useState('');
+  const [selectedCandidateId, setSelectedCandidateId] = useState('');
   const [yearMonth, setYearMonth] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -14,9 +16,9 @@ export default function MonthlyDownloadModal({ isOpen, onClose, setToast }) {
       try {
         const list = await timesheetService.getEmployeesList();
         setEmployees(list);
-        if (list.length > 0) {
-          setCandidateName(list[0].name);
-        }
+        // Initially empty
+        setCandidateName('');
+        setSelectedCandidateId('');
       } catch (err) {
         console.error(err);
       }
@@ -66,7 +68,7 @@ export default function MonthlyDownloadModal({ isOpen, onClose, setToast }) {
       {/* Card panel */}
       <div className="relative z-10 w-full max-w-md bg-[#111111] border border-[#2A2A2A] rounded-2xl overflow-hidden shadow-2xl animate-scale-in">
         <div className="px-6 py-4 border-b border-[#2A2A2A] flex items-center justify-between">
-          <h3 className="text-base font-bold flex items-center gap-2">
+          <h3 className="text-base font-bold flex items-center gap-2 text-white">
             <FileDown size={16} className="text-[#FF7A00]" />
             <span>Generate Monthly Attendance Report</span>
           </h3>
@@ -78,23 +80,22 @@ export default function MonthlyDownloadModal({ isOpen, onClose, setToast }) {
         <form onSubmit={handleSubmit}>
           <div className="p-6 flex flex-col gap-4">
             
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="download-monthly-candidate-input" className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Select Candidate</label>
-              <input
+            <div className="flex flex-col gap-1.5 relative">
+              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Select Candidate</label>
+              <Autocomplete
                 id="download-monthly-candidate-input"
-                name="candidateName"
-                list="download-monthly-employees"
-                required
-                value={candidateName}
-                onChange={(e) => setCandidateName(e.target.value)}
                 placeholder="Type or select candidate..."
-                className="w-full h-14 bg-[#1A1A1A] border border-[#2A2A2A] text-white rounded-xl px-4 text-sm focus:outline-none focus:border-[#FF7A00] focus:ring-1 focus:ring-[#FF7A00] transition"
+                items={employees.map((emp) => ({
+                  value: emp.id,
+                  label: emp.name,
+                  subtext: emp.clientCompany || 'No Client Assigned'
+                }))}
+                selectedValue={selectedCandidateId}
+                onSelect={(val, item) => {
+                  setSelectedCandidateId(val);
+                  setCandidateName(item ? item.label : '');
+                }}
               />
-              <datalist id="download-monthly-employees">
-                {employees.map((emp) => (
-                  <option key={emp.id} value={emp.name} />
-                ))}
-              </datalist>
             </div>
 
             <div className="flex flex-col gap-1.5">
