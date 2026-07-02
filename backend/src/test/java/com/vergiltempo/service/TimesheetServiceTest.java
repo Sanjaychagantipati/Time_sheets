@@ -186,9 +186,9 @@ public class TimesheetServiceTest {
                 .user(employee)
                 .client(client)
                 .date(LocalDate.now())
-                .clockIn(LocalTime.of(9, 0))
-                .clockOut(LocalTime.of(12, 0))
-                .hours(BigDecimal.valueOf(3.0))
+                .clockIn(LocalTime.now().minusHours(4).withNano(0))
+                .clockOut(LocalTime.now().minusHours(2).withNano(0))
+                .hours(BigDecimal.valueOf(2.0))
                 .build();
         AttendanceSession session = AttendanceSession.builder()
                 .timesheet(completedToday)

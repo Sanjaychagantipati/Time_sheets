@@ -9,6 +9,7 @@ import java.util.Optional;
 
 @Repository
 public interface UserRepository extends JpaRepository<User, String> {
+    @org.springframework.data.jpa.repository.Query("SELECT u FROM User u LEFT JOIN FETCH u.client WHERE u.username = :username")
     Optional<User> findByUsername(String username);
     boolean existsByUsername(String username);
     List<User> findByRole(Role role);
