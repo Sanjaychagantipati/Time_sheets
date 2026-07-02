@@ -34,4 +34,6 @@ lerna-debug.log*
 
 # Application secrets and properties
 **/application.properties
-
+.env
+.env.local
+.env.*.local
