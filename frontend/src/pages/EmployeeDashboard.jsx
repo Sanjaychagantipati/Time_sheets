@@ -131,6 +131,9 @@ export default function EmployeeDashboard() {
   // Find active session in today's timesheet (if clocked in)
   const activeSession = todayLog?.sessions?.find(s => s.clockOut === null);
 
+  // Unresolved attendance exceptions (clockOut is null and date is in the past)
+  const employeeExceptions = logs.filter(log => log.clockOut === null && log.date < todayStr);
+
   return (
     <div className="w-full max-w-7xl mx-auto flex flex-col gap-6 animate-fade-in text-white pb-10 px-4">
       {/* Offline Alert Banner */}
@@ -145,11 +148,34 @@ export default function EmployeeDashboard() {
       {todayHolidayName && (
         <div className="bg-orange-500/10 border border-[#FF7A00]/30 text-[#FF7A00] px-5 py-4 rounded-xl flex flex-col gap-1 text-sm animate-fade-in">
           <div className="font-extrabold uppercase tracking-wider flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-[#FF7A00] animate-pulse shadow-[0_0_8px_#FF7A00]" />
+            <span className="w-2.5 h-2.5 rounded-full bg-[#FF7A00] animate-pulse shadow-[0_0_8px_#FF7A00]" />
             <span>Today is a Company Holiday</span>
           </div>
           <p className="text-gray-300 text-xs font-semibold">
             {todayHolidayName} (Clock-in and attendance logging features are disabled for today).
+          </p>
+        </div>
+      )}
+
+      {/* Exception Reminder Banner */}
+      {employeeExceptions.length > 0 && (
+        <div className="bg-red-500/10 border border-red-500/30 text-red-200 px-5 py-4 rounded-xl flex flex-col gap-1.5 text-sm animate-fade-in">
+          <div className="font-extrabold uppercase tracking-wider flex items-center gap-1.5 text-red-400">
+            <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_#ef4444]" />
+            <span>⚠ Attendance Reminder</span>
+          </div>
+          <p className="text-gray-300 text-xs font-semibold">
+            You have {employeeExceptions.length === 1 ? 'one attendance record' : `${employeeExceptions.length} attendance records`} with a Missing Clock Out.
+          </p>
+          <div className="flex flex-col gap-1 mt-1 bg-black/20 p-3 rounded-lg border border-white/5 w-fit">
+            {employeeExceptions.map((exc) => (
+              <div key={exc.id} className="text-xs text-gray-300">
+                Date: <span className="text-white font-mono font-bold">{formatDateFriendly(exc.date)}</span>
+              </div>
+            ))}
+          </div>
+          <p className="text-[11px] text-gray-400 font-bold mt-1">
+            Please contact your administrator for correction.
           </p>
         </div>
       )}

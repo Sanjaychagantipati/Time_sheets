@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { timesheetService } from '../services/timesheetService';
 import CreateEmployeeModal from '../components/admin/CreateEmployeeModal';
 import EditLogModal from '../components/admin/EditLogModal';
+import ResolveExceptionModal from '../components/admin/ResolveExceptionModal';
 import MonthlyDownloadModal from '../components/admin/MonthlyDownloadModal';
 import HolidayManagementModal from '../components/admin/HolidayManagementModal';
 import Toast from '../components/common/Toast';
@@ -46,14 +47,25 @@ export default function AdminDashboard() {
   // Modals status
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isResolveOpen, setIsResolveOpen] = useState(false);
+  const [selectedException, setSelectedException] = useState(null);
   const [isDownloadOpen, setIsDownloadOpen] = useState(false);
   const [isCompanyOpen, setIsCompanyOpen] = useState(false);
   const [isHolidayOpen, setIsHolidayOpen] = useState(false);
   const [selectedLogId, setSelectedLogId] = useState(null);
 
-  // Bulk Selection State
+  const handleResolveException = (exc) => {
+    setSelectedException(exc);
+    setIsResolveOpen(true);
+  };
+
   const [selectedTimesheets, setSelectedTimesheets] = useState([]);
   const [expandedTimesheetIds, setExpandedTimesheetIds] = useState([]);
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const exceptions = logs.filter(
+    (log) => log.clockOut === null && log.date < todayStr
+  );
 
   const toggleTimesheetExpand = (id) => {
     setExpandedTimesheetIds(prev => 
@@ -345,6 +357,49 @@ export default function AdminDashboard() {
 
         </div>
       </div>
+
+      {/* Attendance Exceptions Section */}
+      {exceptions.length > 0 && (
+        <div className="bg-[#111111] border border-[#2A2A2A] p-6 rounded-2xl shadow-xl">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-bold text-[#FF7A00] uppercase tracking-wider flex items-center gap-2">
+              <ClipboardX size={16} />
+              <span>Attendance Exceptions ({exceptions.length})</span>
+            </h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {exceptions.map((exc) => (
+              <div key={exc.id} className="bg-[#1A1A1A] border border-orange-500/20 p-4.5 rounded-2xl flex flex-col gap-3 shadow-md transition-all duration-300 hover:border-orange-500/40">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h4 className="text-sm font-bold text-white">{exc.employeeName}</h4>
+                    <span className="text-[10px] text-gray-400 font-medium">{exc.clientCompany}</span>
+                  </div>
+                  <span className="text-[10px] px-2 py-1 bg-orange-500/10 border border-orange-500/20 text-[#FF7A00] font-bold uppercase rounded-md flex items-center gap-1 shrink-0">
+                    ⚠ Missing Clock Out
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-xs border-t border-[#2A2A2A] pt-3 mt-1">
+                  <div>
+                    <span className="text-[10px] text-gray-500 block uppercase tracking-wider font-bold">Date</span>
+                    <span className="text-white font-semibold">{formatDateFriendly(exc.date)}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-gray-500 block uppercase tracking-wider font-bold">Clock In</span>
+                    <span className="text-white font-mono">{formatTime12h(exc.clockIn)}</span>
+                  </div>
+                  <button
+                    onClick={() => handleResolveException(exc)}
+                    className="px-3.5 py-1.5 bg-[#FF7A00] hover:bg-[#FF8C1A] text-white text-xs font-bold rounded-lg transition cursor-pointer shadow-md shadow-[#FF7A00]/15"
+                  >
+                    Resolve
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* 3. Filter control panel */}
       <div className="bg-[#111111] border border-[#2A2A2A] p-6 rounded-2xl shadow-xl">
@@ -670,6 +725,17 @@ export default function AdminDashboard() {
         isOpen={isEditOpen}
         logId={selectedLogId}
         onClose={() => setIsEditOpen(false)}
+        onSuccess={loadData}
+        setToast={setToast}
+      />
+
+      <ResolveExceptionModal
+        isOpen={isResolveOpen}
+        exception={selectedException}
+        onClose={() => {
+          setIsResolveOpen(false);
+          setSelectedException(null);
+        }}
         onSuccess={loadData}
         setToast={setToast}
       />
