@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { clientElapsedMs, browser, operatingSystem, deviceType, screenResolution } = body;
+    const { clientElapsedMs, browser, operatingSystem, deviceType, screenResolution, timezoneOffset: timezoneOffsetRaw } = body;
 
     // Validation: Future timestamps
     if (clientElapsedMs !== undefined && clientElapsedMs < 0) {
@@ -24,19 +24,22 @@ export async function POST(req: NextRequest) {
       eventLdt = new Date(Date.now() - clientElapsedMs);
     }
 
+    const timezoneOffset = timezoneOffsetRaw !== undefined ? Number(timezoneOffsetRaw) : -330;
+    const localTime = new Date(eventLdt.getTime() - timezoneOffset * 60 * 1000);
+
     const eventDate = new Date(
       Date.UTC(eventLdt.getFullYear(), eventLdt.getMonth(), eventLdt.getDate(), 0, 0, 0, 0)
     );
     
-    // Create Date representing only time for time column in DB
+    // Create Date representing only time for time column in DB (in client's local time)
     const eventClockIn = new Date(
       Date.UTC(
         1970,
         0,
         1,
-        eventLdt.getHours(),
-        eventLdt.getMinutes(),
-        eventLdt.getSeconds(),
+        localTime.getUTCHours(),
+        localTime.getUTCMinutes(),
+        localTime.getUTCSeconds(),
         0
       )
     );

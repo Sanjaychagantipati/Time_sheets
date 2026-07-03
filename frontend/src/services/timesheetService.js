@@ -258,7 +258,8 @@ export const timesheetService = {
         browser: metadata.browser,
         operatingSystem: metadata.operatingSystem,
         deviceType: metadata.deviceType,
-        screenResolution: metadata.screenResolution
+        screenResolution: metadata.screenResolution,
+        timezoneOffset: new Date().getTimezoneOffset()
       });
       if (response.data && response.data.log) {
         localStorage.setItem('vt_active_shift', JSON.stringify(response.data.log));
@@ -374,7 +375,8 @@ export const timesheetService = {
         browser: metadata.browser,
         operatingSystem: metadata.operatingSystem,
         deviceType: metadata.deviceType,
-        screenResolution: metadata.screenResolution
+        screenResolution: metadata.screenResolution,
+        timezoneOffset: new Date().getTimezoneOffset()
       });
       localStorage.removeItem('vt_active_shift');
       triggerSync();

@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { clientElapsedMs, notes, browser, operatingSystem, deviceType, screenResolution } = body;
+    const { clientElapsedMs, notes, browser, operatingSystem, deviceType, screenResolution, timezoneOffset: timezoneOffsetRaw } = body;
 
     // Validation: Future timestamps
     if (clientElapsedMs !== undefined && clientElapsedMs < 0) {
@@ -41,6 +41,9 @@ export async function POST(req: NextRequest) {
       eventLdt = new Date(Date.now() - clientElapsedMs);
     }
 
+    const timezoneOffset = timezoneOffsetRaw !== undefined ? Number(timezoneOffsetRaw) : -330;
+    const localTime = new Date(eventLdt.getTime() - timezoneOffset * 60 * 1000);
+
     const eventDate = new Date(
       Date.UTC(eventLdt.getFullYear(), eventLdt.getMonth(), eventLdt.getDate(), 0, 0, 0, 0)
     );
@@ -49,9 +52,9 @@ export async function POST(req: NextRequest) {
         1970,
         0,
         1,
-        eventLdt.getHours(),
-        eventLdt.getMinutes(),
-        eventLdt.getSeconds(),
+        localTime.getUTCHours(),
+        localTime.getUTCMinutes(),
+        localTime.getUTCSeconds(),
         0
       )
     );
@@ -71,7 +74,12 @@ export async function POST(req: NextRequest) {
     );
 
     const endLdt = new Date(eventDate);
-    endLdt.setUTCHours(eventLdt.getHours(), eventLdt.getMinutes(), eventLdt.getSeconds(), 0);
+    endLdt.setUTCHours(
+      localTime.getUTCHours(),
+      localTime.getUTCMinutes(),
+      localTime.getUTCSeconds(),
+      0
+    );
 
     const minutes = Math.floor((endLdt.getTime() - startLdt.getTime()) / 60000);
     if (minutes < 0) {
