@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
       orderBy: { name: "asc" },
     });
 
-    const formatted = employeesList.map(emp => ({
+    const formatted = employeesList.map((emp: any) => ({
       id: emp.id,
       name: emp.name,
       username: emp.username,
