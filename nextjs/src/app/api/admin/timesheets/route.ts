@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { checkAuth } from "@/lib/auth";
 import { calculateAggregates, recalculateTimesheetAggregates } from "@/lib/attendance";
 
+export const dynamic = "force-dynamic";
 
 // GET /api/admin/timesheets
 export async function GET(req: NextRequest) {

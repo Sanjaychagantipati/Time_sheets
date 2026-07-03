@@ -23,8 +23,11 @@ export async function POST(req: NextRequest) {
         user_id: user.id,
         clock_out: null,
       },
+      orderBy: { date: "desc" },
       include: {
-        attendance_sessions: true,
+        attendance_sessions: {
+          orderBy: { clock_in: "asc" },
+        },
       },
     });
 

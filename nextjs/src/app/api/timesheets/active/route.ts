@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkAuth } from "@/lib/auth";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   const { user, response } = await checkAuth(req, ["EMPLOYEE", "ADMIN", "MANAGER"]);
   if (response) return response;
@@ -13,6 +15,7 @@ export async function GET(req: NextRequest) {
         user_id: user.id,
         clock_out: null,
       },
+      orderBy: { date: "desc" },
       select: {
         id: true,
         user_id: true,

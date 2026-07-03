@@ -71,6 +71,7 @@ export async function POST(req: NextRequest) {
         user_id: user.id,
         clock_out: null,
       },
+      orderBy: { date: "desc" },
     });
     if (activeTimesheet) {
       return NextResponse.json({ error: "Active shift already exists" }, { status: 400 });

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { checkAuth } from "@/lib/auth";
 import { calculateAggregates } from "@/lib/attendance";
 
+export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   const { user, response } = await checkAuth(req, ["EMPLOYEE", "ADMIN"]);
