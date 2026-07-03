@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkAuth } from "@/lib/auth";
-import { recalculateTimesheetAggregates } from "@/lib/attendance";
+import { recalculateTimesheetAggregates, getCurrentISTTime } from "@/lib/attendance";
 
 
 export async function POST(req: NextRequest) {
@@ -11,12 +11,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { clientElapsedMs, notes, browser, operatingSystem, deviceType, screenResolution, timezoneOffset: timezoneOffsetRaw } = body;
-
-    // Validation: Future timestamps
-    if (clientElapsedMs !== undefined && clientElapsedMs < 0) {
-      return NextResponse.json({ error: "Future timestamps are not allowed" }, { status: 400 });
-    }
+    const { notes, browser, operatingSystem, deviceType, screenResolution } = body;
 
     const timesheet = await prisma.timesheets.findFirst({
       where: {
@@ -35,29 +30,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No active shift found" }, { status: 404 });
     }
 
-    // Time synchronization
-    let eventLdt = new Date();
-    if (clientElapsedMs !== undefined) {
-      eventLdt = new Date(Date.now() - clientElapsedMs);
-    }
-
-    const timezoneOffset = timezoneOffsetRaw !== undefined ? Number(timezoneOffsetRaw) : -330;
-    const localTime = new Date(eventLdt.getTime() - timezoneOffset * 60 * 1000);
-
-    const eventDate = new Date(
-      Date.UTC(eventLdt.getFullYear(), eventLdt.getMonth(), eventLdt.getDate(), 0, 0, 0, 0)
-    );
-    const clockOutTime = new Date(
-      Date.UTC(
-        1970,
-        0,
-        1,
-        localTime.getUTCHours(),
-        localTime.getUTCMinutes(),
-        localTime.getUTCSeconds(),
-        0
-      )
-    );
+    // Use absolute current server time projected into Asia/Kolkata timezone
+    const { eventDate, eventTime: clockOutTime, hour, minute, second } = getCurrentISTTime();
 
     const activeSession = timesheet.attendance_sessions.find((s) => s.clock_out === null);
     if (!activeSession) {
@@ -74,12 +48,7 @@ export async function POST(req: NextRequest) {
     );
 
     const endLdt = new Date(eventDate);
-    endLdt.setUTCHours(
-      localTime.getUTCHours(),
-      localTime.getUTCMinutes(),
-      localTime.getUTCSeconds(),
-      0
-    );
+    endLdt.setUTCHours(hour, minute, second, 0);
 
     const minutes = Math.floor((endLdt.getTime() - startLdt.getTime()) / 60000);
     if (minutes < 0) {

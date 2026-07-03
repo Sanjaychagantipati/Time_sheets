@@ -89,3 +89,40 @@ export async function recalculateTimesheetAggregates(timesheetId: string) {
     },
   });
 }
+
+export function getCurrentISTTime() {
+  const d = new Date();
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "numeric",
+    minute: "numeric",
+    second: "numeric",
+    hour12: false,
+  });
+  const parts = formatter.formatToParts(d);
+  const map = new Map(parts.map((p) => [p.type, p.value]));
+  
+  const year = parseInt(map.get("year")!);
+  const month = parseInt(map.get("month")!) - 1;
+  const day = parseInt(map.get("day")!);
+  const hour = parseInt(map.get("hour")!);
+  const minute = parseInt(map.get("minute")!);
+  const second = parseInt(map.get("second")!);
+
+  const eventDate = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
+  const eventTime = new Date(Date.UTC(1970, 0, 1, hour, minute, second, 0));
+
+  return {
+    eventDate,
+    eventTime,
+    year,
+    month,
+    day,
+    hour,
+    minute,
+    second,
+  };
+}

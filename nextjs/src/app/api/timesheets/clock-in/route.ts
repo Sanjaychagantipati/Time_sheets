@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkAuth } from "@/lib/auth";
-import { recalculateTimesheetAggregates } from "@/lib/attendance";
+import { recalculateTimesheetAggregates, getCurrentISTTime } from "@/lib/attendance";
 
 
 export async function POST(req: NextRequest) {
@@ -11,38 +11,10 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { clientElapsedMs, browser, operatingSystem, deviceType, screenResolution, timezoneOffset: timezoneOffsetRaw } = body;
+    const { browser, operatingSystem, deviceType, screenResolution } = body;
 
-    // Validation: Future timestamps
-    if (clientElapsedMs !== undefined && clientElapsedMs < 0) {
-      return NextResponse.json({ error: "Future timestamps are not allowed" }, { status: 400 });
-    }
-
-    // Time synchronization
-    let eventLdt = new Date();
-    if (clientElapsedMs !== undefined) {
-      eventLdt = new Date(Date.now() - clientElapsedMs);
-    }
-
-    const timezoneOffset = timezoneOffsetRaw !== undefined ? Number(timezoneOffsetRaw) : -330;
-    const localTime = new Date(eventLdt.getTime() - timezoneOffset * 60 * 1000);
-
-    const eventDate = new Date(
-      Date.UTC(eventLdt.getFullYear(), eventLdt.getMonth(), eventLdt.getDate(), 0, 0, 0, 0)
-    );
-    
-    // Create Date representing only time for time column in DB (in client's local time)
-    const eventClockIn = new Date(
-      Date.UTC(
-        1970,
-        0,
-        1,
-        localTime.getUTCHours(),
-        localTime.getUTCMinutes(),
-        localTime.getUTCSeconds(),
-        0
-      )
-    );
+    // Use absolute current server time projected into Asia/Kolkata timezone
+    const { eventDate, eventTime: eventClockIn } = getCurrentISTTime();
 
     // Reject clock-in on company holidays
     const holiday = await prisma.holidays.findFirst({
