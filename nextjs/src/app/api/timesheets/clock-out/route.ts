@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkAuth } from "@/lib/auth";
+import { recalculateTimesheetAggregates } from "@/lib/attendance";
+
 
 export async function POST(req: NextRequest) {
   const { user, response } = await checkAuth(req, ["EMPLOYEE", "ADMIN"]);
@@ -99,7 +101,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const savedTimesheet = await prisma.timesheets.update({
+    await prisma.timesheets.update({
       where: { id: timesheet.id },
       data: {
         clock_out: clockOutTime,
@@ -114,6 +116,16 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    await recalculateTimesheetAggregates(timesheet.id);
+
+    const savedTimesheet = await prisma.timesheets.findUnique({
+      where: { id: timesheet.id },
+    });
+
+    if (!savedTimesheet) {
+      throw new Error("Failed to load saved timesheet");
+    }
+
     const formatTime = (d: Date | null) => (d ? d.toISOString().split("T")[1].slice(0, 8) : null);
 
     return NextResponse.json({
@@ -121,7 +133,7 @@ export async function POST(req: NextRequest) {
       log: {
         id: savedTimesheet.id,
         clockOut: formatTime(savedTimesheet.clock_out),
-        hours: Number(savedTimesheet.hours),
+        hours: savedTimesheet.hours ? Number(savedTimesheet.hours) : null,
         notes: savedTimesheet.notes,
       },
     });

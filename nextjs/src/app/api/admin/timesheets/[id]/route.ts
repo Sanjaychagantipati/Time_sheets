@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkAuth } from "@/lib/auth";
+import { recalculateTimesheetAggregates } from "@/lib/attendance";
+
 
 // PUT /api/admin/timesheets/[id]
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -173,6 +175,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         },
       });
     }
+
+    await recalculateTimesheetAggregates(id);
 
     return NextResponse.json({ message: "Timesheet record updated" });
   } catch (error: any) {

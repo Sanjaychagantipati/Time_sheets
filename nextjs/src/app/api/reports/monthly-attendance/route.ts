@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkAuth } from "@/lib/auth";
 import PDFDocument from "pdfkit";
+import { calculateAggregates } from "@/lib/attendance";
+
 
 export async function GET(req: NextRequest) {
   const { user, response } = await checkAuth(req, ["ADMIN", "MANAGER", "EMPLOYEE"]);
@@ -44,7 +46,9 @@ export async function GET(req: NextRequest) {
         },
       },
       include: {
-        attendance_sessions: true,
+        attendance_sessions: {
+          orderBy: { clock_in: "asc" },
+        },
       },
     });
 
@@ -172,18 +176,25 @@ export async function GET(req: NextRequest) {
         let dayTotalHours = 0;
 
         dayLogs.forEach((l: any) => {
-          if (l.clock_in) {
-            if (!earliestClockIn || l.clock_in < earliestClockIn) {
-              earliestClockIn = l.clock_in;
+          const { clockIn, clockOut, hours } = calculateAggregates(
+            l.attendance_sessions || [],
+            l.clock_in,
+            l.clock_out,
+            l.hours
+          );
+
+          if (clockIn) {
+            if (!earliestClockIn || clockIn < earliestClockIn) {
+              earliestClockIn = clockIn;
             }
           }
-          if (l.clock_out) {
-            if (!latestClockOut || l.clock_out > latestClockOut) {
-              latestClockOut = l.clock_out;
+          if (clockOut) {
+            if (!latestClockOut || clockOut > latestClockOut) {
+              latestClockOut = clockOut;
             }
-            if (l.hours) {
-              dayTotalHours += Number(l.hours);
-            }
+          }
+          if (hours) {
+            dayTotalHours += Number(hours);
           }
         });
 

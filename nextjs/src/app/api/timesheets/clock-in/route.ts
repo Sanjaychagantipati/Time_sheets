@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkAuth } from "@/lib/auth";
+import { recalculateTimesheetAggregates } from "@/lib/attendance";
+
 
 export async function POST(req: NextRequest) {
   const { user, response } = await checkAuth(req, ["EMPLOYEE", "ADMIN"]);
@@ -152,6 +154,8 @@ export async function POST(req: NextRequest) {
         clock_out: null,
       },
     });
+
+    await recalculateTimesheetAggregates(timesheetId);
 
     const savedTimesheet = await prisma.timesheets.findUnique({
       where: { id: timesheetId },

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkAuth } from "@/lib/auth";
+import { calculateAggregates, recalculateTimesheetAggregates } from "@/lib/attendance";
+
 
 // GET /api/admin/timesheets
 export async function GET(req: NextRequest) {
@@ -77,30 +79,41 @@ export async function GET(req: NextRequest) {
 
     const formatTime = (d: Date | null) => (d ? d.toISOString().split("T")[1].slice(0, 8) : null);
 
-    const formatted = timesheets.map((t) => ({
-      id: t.id,
-      userId: t.user_id,
-      employeeName: t.users.name,
-      date: t.date.toISOString().split("T")[0],
-      clockIn: formatTime(t.clock_in),
-      clockOut: formatTime(t.clock_out),
-      hours: t.hours ? Number(t.hours) : null,
-      notes: t.notes,
-      clientCompany: t.clients.name,
-      status: t.clock_out === null ? "ACTIVE" : "COMPLETED",
-      browser: t.browser,
-      operatingSystem: t.operating_system,
-      deviceType: t.device_type,
-      screenResolution: t.screen_resolution,
-      ipAddress: t.ip_address,
-      userAgent: t.user_agent,
-      sessions: t.attendance_sessions.map((s) => ({
-        id: s.id,
-        clockIn: formatTime(s.clock_in),
-        clockOut: formatTime(s.clock_out),
-        hours: s.hours ? Number(s.hours) : null,
-      })),
-    }));
+    const formatted = timesheets.map((t) => {
+      const { clockIn, clockOut, hours, sortedSessions } = calculateAggregates(
+        t.attendance_sessions,
+        t.clock_in,
+        t.clock_out,
+        t.hours
+      );
+
+      const hasActiveSession = sortedSessions.some((s) => s.clock_out === null);
+
+      return {
+        id: t.id,
+        userId: t.user_id,
+        employeeName: t.users.name,
+        date: t.date.toISOString().split("T")[0],
+        clockIn: formatTime(clockIn),
+        clockOut: formatTime(clockOut),
+        hours: hours,
+        notes: t.notes,
+        clientCompany: t.clients.name,
+        status: hasActiveSession ? "ACTIVE" : "COMPLETED",
+        browser: t.browser,
+        operatingSystem: t.operating_system,
+        deviceType: t.device_type,
+        screenResolution: t.screen_resolution,
+        ipAddress: t.ip_address,
+        userAgent: t.user_agent,
+        sessions: sortedSessions.map((s) => ({
+          id: s.id,
+          clockIn: formatTime(s.clock_in),
+          clockOut: formatTime(s.clock_out),
+          hours: s.hours ? Number(s.hours) : null,
+        })),
+      };
+    });
 
     return NextResponse.json(formatted);
   } catch (error: any) {
@@ -252,6 +265,7 @@ export async function POST(req: NextRequest) {
         },
       });
 
+      await recalculateTimesheetAggregates(timesheetId);
       return NextResponse.json({ message: "Manual active entry created", id: timesheetId }, { status: 201 });
     }
 
@@ -300,6 +314,7 @@ export async function POST(req: NextRequest) {
         });
       }
 
+      await recalculateTimesheetAggregates(openTimesheet.id);
       return NextResponse.json({ message: "Clock out updated successfully", id: openTimesheet.id }, { status: 200 });
     }
 
@@ -357,6 +372,7 @@ export async function POST(req: NextRequest) {
         },
       });
 
+      await recalculateTimesheetAggregates(timesheetId);
       return NextResponse.json({ message: "Manual entry created", id: timesheetId }, { status: 201 });
     }
 

@@ -185,19 +185,19 @@ export default function EmployeeDashboard() {
             <div className="bg-[#111111] border border-[#2A2A2A] p-4.5 rounded-2xl shadow-xl flex flex-col gap-1 text-center sm:text-left transition-all duration-300 hover:border-[#FF7A00]/20">
               <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Today's First In</span>
               <span className="text-lg font-extrabold text-white font-mono mt-1">
-                {todayLog ? formatTime12h(todayLog.clockIn) : '--:--'}
+                {todayLog && todayLog.clockIn ? formatTime12h(todayLog.clockIn) : '--'}
               </span>
             </div>
             <div className="bg-[#111111] border border-[#2A2A2A] p-4.5 rounded-2xl shadow-xl flex flex-col gap-1 text-center sm:text-left transition-all duration-300 hover:border-[#FF7A00]/20">
               <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Today's Last Out</span>
               <span className="text-lg font-extrabold text-white font-mono mt-1">
-                {todayLog && todayLog.clockOut && !isClockedIn ? formatTime12h(todayLog.clockOut) : '--:--'}
+                {todayLog && todayLog.clockOut ? formatTime12h(todayLog.clockOut) : '--'}
               </span>
             </div>
             <div className="bg-[#111111] border border-[#2A2A2A] p-4.5 rounded-2xl shadow-xl flex flex-col gap-1 text-center sm:text-left transition-all duration-300 hover:border-[#FF7A00]/20">
               <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Today's Total Hours</span>
               <span className="text-lg font-black text-[#FF7A00] font-mono mt-1">
-                {todayLog ? `${(todayLog.hours || 0).toFixed(2)} hrs` : '0.00 hrs'}
+                {todayLog && todayLog.clockIn ? `${(todayLog.hours || 0).toFixed(2)} hrs` : '--'}
               </span>
             </div>
           </div>
