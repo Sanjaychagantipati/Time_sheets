@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { notes, browser, operatingSystem, deviceType, screenResolution } = body;
+    const { notes, browser, operatingSystem, deviceType, screenResolution, recoveryClockOut } = body;
 
     const timesheet = await prisma.timesheets.findFirst({
       where: {
@@ -31,7 +31,50 @@ export async function POST(req: NextRequest) {
     }
 
     // Use absolute current server time projected into Asia/Kolkata timezone
-    const { eventDate, eventTime: clockOutTime, hour, minute, second } = getCurrentISTTime();
+    const { eventDate, eventTime: serverClockOutTime, hour, minute, second } = getCurrentISTTime();
+
+    let clockOutTime = serverClockOutTime;
+    let hourVal = hour;
+    let minuteVal = minute;
+    let secondVal = second;
+    let finalNotes = notes || null;
+
+    if (recoveryClockOut) {
+      // 1. Validate that current server time is after 8:30 PM (20:30)
+      if (hour < 20 || (hour === 20 && minute < 30)) {
+        return NextResponse.json({ error: "Attendance recovery is only available after 08:30 PM" }, { status: 400 });
+      }
+
+      // 2. Validate that timesheet date is today
+      const serverDateStr = eventDate.toISOString().split("T")[0];
+      const timesheetDateStr = timesheet.date.toISOString().split("T")[0];
+      if (timesheetDateStr !== serverDateStr) {
+        return NextResponse.json({ error: "You can only recover today's attendance" }, { status: 400 });
+      }
+
+      // 3. Parse recoveryClockOut
+      const parts = recoveryClockOut.split(":");
+      hourVal = parseInt(parts[0]);
+      minuteVal = parseInt(parts[1]);
+      secondVal = parts[2] ? parseInt(parts[2]) : 0;
+
+      if (isNaN(hourVal) || isNaN(minuteVal) || hourVal < 0 || hourVal > 23 || minuteVal < 0 || minuteVal > 59) {
+        return NextResponse.json({ error: "Invalid recovery clock out time format" }, { status: 400 });
+      }
+
+      clockOutTime = new Date(Date.UTC(1970, 0, 1, hourVal, minuteVal, secondVal, 0));
+
+      // 4. Validate that recovery time is not in the future
+      const testEnd = new Date(eventDate);
+      testEnd.setUTCHours(hourVal, minuteVal, secondVal, 0);
+      if (testEnd.getTime() > Date.now()) {
+        return NextResponse.json({ error: "Actual Clock Out Time cannot be in the future" }, { status: 400 });
+      }
+
+      // 5. Append audit notes
+      const auditStr = `[Recovery Submitted At: ${new Date().toISOString()}]`;
+      finalNotes = finalNotes ? `${finalNotes} ${auditStr}` : auditStr;
+    }
 
     const activeSession = timesheet.attendance_sessions.find((s) => s.clock_out === null);
     if (!activeSession) {
@@ -48,7 +91,7 @@ export async function POST(req: NextRequest) {
     );
 
     const endLdt = new Date(eventDate);
-    endLdt.setUTCHours(hour, minute, second, 0);
+    endLdt.setUTCHours(hourVal, minuteVal, secondVal, 0);
 
     const minutes = Math.floor((endLdt.getTime() - startLdt.getTime()) / 60000);
     if (minutes < 0) {
@@ -73,11 +116,11 @@ export async function POST(req: NextRequest) {
         .reduce((sum, s) => sum + Number(s.hours || 0), 0) + decimalHours;
 
     let updatedNotes = timesheet.notes;
-    if (notes && notes.trim() !== "") {
+    if (finalNotes && finalNotes.trim() !== "") {
       if (!updatedNotes || updatedNotes.trim() === "") {
-        updatedNotes = notes.trim();
+        updatedNotes = finalNotes.trim();
       } else {
-        updatedNotes = updatedNotes + " | " + notes.trim();
+        updatedNotes = updatedNotes + " | " + finalNotes.trim();
       }
     }
 

@@ -58,6 +58,15 @@ export async function GET(req: NextRequest) {
 
       const hasActiveSession = sortedSessions.some((s) => s.clock_out === null);
 
+      const inHour = clockIn.getUTCHours();
+      const inMinute = clockIn.getUTCMinutes();
+      const isLate = inHour > 10 || (inHour === 10 && inMinute > 0);
+
+      let calculatedStatus = hasActiveSession ? "ACTIVE" : "COMPLETED";
+      if (isLate) {
+        calculatedStatus = "LATE_CLOCK_IN";
+      }
+
       return {
         id: t.id,
         userId: t.user_id,
@@ -67,7 +76,7 @@ export async function GET(req: NextRequest) {
         hours: hours,
         notes: t.notes,
         clientCompany: t.clients.name,
-        status: hasActiveSession ? "ACTIVE" : "COMPLETED",
+        status: calculatedStatus,
         browser: t.browser,
         operatingSystem: t.operating_system,
         deviceType: t.device_type,

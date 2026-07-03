@@ -10,9 +10,21 @@ export default function ClockCard({ onShiftLogged, setToast, isHoliday = false, 
   const [timeStr, setTimeStr] = useState('00:00:00');
   const [dateStr, setDateStr] = useState('');
   const [notes, setNotes] = useState('');
+  const [recoveryTime, setRecoveryTime] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [now, setNow] = useState(new Date());
+
+  // Update now time every 10 seconds for recovery check
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 10000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const currentHour = now.getHours();
+  const currentMinute = now.getMinutes();
+  const isAfterRecoveryWindow = isClockedIn && (currentHour > 20 || (currentHour === 20 && currentMinute >= 30));
 
   const checkStatus = useCallback(async () => {
     if (!user) return;
@@ -156,6 +168,51 @@ export default function ClockCard({ onShiftLogged, setToast, isHoliday = false, 
     }
   };
 
+  const handleRecoverySave = async () => {
+    if (!recoveryTime) {
+      setToast({ message: 'Please select your actual clock-out time.', type: 'error' });
+      return;
+    }
+
+    // Validation: must be after Clock In
+    if (activeLog && activeLog.clockIn) {
+      const [inH, inM, inS = 0] = activeLog.clockIn.split(':').map(Number);
+      const [outH, outM, outS = 0] = recoveryTime.split(':').map(Number);
+      const inMin = inH * 60 + inM + inS / 60;
+      const outMin = outH * 60 + outM + outS / 60;
+      if (outMin <= inMin) {
+        setToast({ message: 'Clock Out time must be later than Clock In time.', type: 'error' });
+        return;
+      }
+    }
+
+    // Validation: cannot be in the future relative to local browser time
+    const nowLocal = new Date();
+    const [outH, outM, outS = 0] = recoveryTime.split(':').map(Number);
+    const selectedDateTime = new Date();
+    selectedDateTime.setHours(outH, outM, outS, 0);
+    if (selectedDateTime.getTime() > nowLocal.getTime()) {
+      setToast({ message: 'Actual Clock Out Time cannot be in the future.', type: 'error' });
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      const res = await timesheetService.clockOut(activeLog.id, notes, recoveryTime);
+      setNotes('');
+      setRecoveryTime('');
+      setToast({ message: `Attendance recovered successfully! Hours Logged: ${res.log.hours}h`, type: 'success' });
+      await checkStatus();
+      if (onShiftLogged) onShiftLogged();
+    } catch (err) {
+      console.error(err);
+      const errMsg = err.response?.data?.error || err.message || 'Failed to save attendance recovery.';
+      setToast({ message: errMsg, type: 'error' });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
 
   return (
     <div className="bg-[#111111] border border-[#2A2A2A] p-10 flex flex-col items-center justify-center rounded-2xl relative overflow-hidden text-center shadow-2xl">
@@ -180,44 +237,96 @@ export default function ClockCard({ onShiftLogged, setToast, isHoliday = false, 
       </div>
 
       <div className="w-full max-w-md relative z-10">
-        {isClockedIn && (
-          <div className="mb-5 flex flex-col gap-2">
-            <label htmlFor="shift-notes" className="text-left text-[10px] font-bold text-[#B3B3B3] uppercase tracking-wider">
-              What are you working on today?
-            </label>
-            <textarea
-              id="shift-notes"
-              name="notes"
-              className="bg-[#1A1A1A] border border-[#2A2A2A] text-white rounded-xl p-3.5 text-sm focus:outline-none focus:border-[#FF7A00] focus:ring-1 focus:ring-[#FF7A00] transition resize-none w-full"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="What are you working on today?"
-              rows={2}
-              maxLength={250}
-            />
-          </div>
-        )}
+        {isAfterRecoveryWindow ? (
+          <div className="flex flex-col gap-4.5 text-left bg-orange-500/5 border border-orange-500/20 p-6 rounded-2xl animate-fade-in">
+            <div className="flex items-center gap-2 text-[#FF7A00] font-black text-sm uppercase tracking-wider">
+              <AlertTriangle size={18} />
+              <span>Forgot to Clock Out</span>
+            </div>
+            <p className="text-gray-300 text-xs leading-relaxed font-medium">
+              Our records show that you forgot to clock out today. Please enter your actual clock-out time.
+            </p>
+            
+            <div className="flex flex-col gap-1.5 mt-2">
+              <label htmlFor="recovery-time" className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                Actual Clock Out Time
+              </label>
+              <input
+                id="recovery-time"
+                type="time"
+                step="1"
+                required
+                value={recoveryTime}
+                onChange={(e) => setRecoveryTime(e.target.value)}
+                className="bg-[#1A1A1A] border border-[#2A2A2A] text-white rounded-xl px-4 h-11 text-sm focus:outline-none focus:border-[#FF7A00] focus:ring-1 focus:ring-[#FF7A00] transition"
+              />
+            </div>
 
-        <button
-          onClick={isClockedIn ? () => setShowConfirm(true) : handleClockIn}
-          disabled={submitting || isHoliday}
-          className={`w-full py-4 text-base font-bold rounded-xl flex items-center justify-center gap-2 transition duration-300 cursor-pointer disabled:cursor-not-allowed ${
-            isHoliday
-              ? 'bg-[#1A1A1A] text-gray-500 border border-[#2A2A2A] hover:shadow-none'
-              : isClockedIn
-                ? 'bg-[#2A2A2A] hover:bg-[#333333] text-white border border-[#3A3A3A] hover:shadow-[0_0_15px_rgba(255,122,0,0.1)]'
-                : 'bg-[#FF7A00] hover:bg-[#FF8C1A] text-white hover:shadow-[0_0_15px_rgba(255,122,0,0.35)] shadow-lg shadow-[#FF7A00]/10'
-          }`}
-        >
-          {isClockedIn ? <Square size={16} /> : <Play size={16} />}
-          <span>
-            {submitting 
-              ? (isClockedIn ? 'Clocking Out...' : 'Clocking In...') 
-              : isHoliday
-                ? 'Holiday - Clock In Disabled'
-                : (isClockedIn ? 'Clock Out' : 'Clock In')}
-          </span>
-        </button>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="recovery-notes" className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                Reason (Optional)
+              </label>
+              <textarea
+                id="recovery-notes"
+                className="bg-[#1A1A1A] border border-[#2A2A2A] text-white rounded-xl p-3.5 text-sm focus:outline-none focus:border-[#FF7A00] focus:ring-1 focus:ring-[#FF7A00] transition resize-none w-full"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Reason for missing clock out..."
+                rows={2}
+                maxLength={250}
+              />
+            </div>
+
+            <button
+              onClick={handleRecoverySave}
+              disabled={submitting}
+              className="w-full py-3.5 bg-[#FF7A00] hover:bg-[#FF8C1A] text-white text-sm font-bold rounded-xl transition duration-300 cursor-pointer shadow-lg shadow-[#FF7A00]/15 mt-1"
+            >
+              {submitting ? 'Saving...' : 'Save Recovery'}
+            </button>
+          </div>
+        ) : (
+          <>
+            {isClockedIn && (
+              <div className="mb-5 flex flex-col gap-2">
+                <label htmlFor="shift-notes" className="text-left text-[10px] font-bold text-[#B3B3B3] uppercase tracking-wider">
+                  What are you working on today?
+                </label>
+                <textarea
+                  id="shift-notes"
+                  name="notes"
+                  className="bg-[#1A1A1A] border border-[#2A2A2A] text-white rounded-xl p-3.5 text-sm focus:outline-none focus:border-[#FF7A00] focus:ring-1 focus:ring-[#FF7A00] transition resize-none w-full"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="What are you working on today?"
+                  rows={2}
+                  maxLength={250}
+                />
+              </div>
+            )}
+
+            <button
+              onClick={isClockedIn ? () => setShowConfirm(true) : handleClockIn}
+              disabled={submitting || isHoliday}
+              className={`w-full py-4 text-base font-bold rounded-xl flex items-center justify-center gap-2 transition duration-300 cursor-pointer disabled:cursor-not-allowed ${
+                isHoliday
+                  ? 'bg-[#1A1A1A] text-gray-500 border border-[#2A2A2A] hover:shadow-none'
+                  : isClockedIn
+                    ? 'bg-[#2A2A2A] hover:bg-[#333333] text-white border border-[#3A3A3A] hover:shadow-[0_0_15px_rgba(255,122,0,0.1)]'
+                    : 'bg-[#FF7A00] hover:bg-[#FF8C1A] text-white hover:shadow-[0_0_15px_rgba(255,122,0,0.35)] shadow-lg shadow-[#FF7A00]/10'
+              }`}
+            >
+              {isClockedIn ? <Square size={16} /> : <Play size={16} />}
+              <span>
+                {submitting 
+                  ? (isClockedIn ? 'Clocking Out...' : 'Clocking In...') 
+                  : isHoliday
+                    ? 'Holiday - Clock In Disabled'
+                    : (isClockedIn ? 'Clock Out' : 'Clock In')}
+              </span>
+            </button>
+          </>
+        )}
       </div>
 
       {/* Clock Out Confirmation Modal */}

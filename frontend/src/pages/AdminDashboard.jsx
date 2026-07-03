@@ -595,9 +595,15 @@ export default function AdminDashboard() {
                           <span className={`px-2.5 py-1 text-[10px] font-extrabold rounded-full border ${
                             log.status === 'ACTIVE' 
                               ? 'bg-green-500/10 text-green-400 border-green-500/20 animate-pulse' 
-                              : 'bg-orange-500/10 text-[#FF7A00] border-orange-500/20'
+                              : log.status === 'LATE_CLOCK_IN'
+                                ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                                : 'bg-orange-500/10 text-[#FF7A00] border-orange-500/20'
                           }`}>
-                            {log.status === 'ACTIVE' ? 'Active' : 'Completed'}
+                            {log.status === 'ACTIVE' 
+                              ? 'Active' 
+                              : log.status === 'LATE_CLOCK_IN'
+                                ? 'Late Clock In'
+                                : 'Completed'}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-xs text-[#B3B3B3] max-w-[200px] truncate" title={log.notes}>

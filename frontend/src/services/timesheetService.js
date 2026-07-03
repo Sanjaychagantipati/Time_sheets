@@ -269,7 +269,7 @@ export const timesheetService = {
     }
   },
 
-  clockOut: async (activeClockId, notes) => {
+  clockOut: async (activeClockId, notes, recoveryClockOut) => {
     const metadata = getDeviceMetadata();
 
     // If offline, queue request
@@ -376,7 +376,8 @@ export const timesheetService = {
         operatingSystem: metadata.operatingSystem,
         deviceType: metadata.deviceType,
         screenResolution: metadata.screenResolution,
-        timezoneOffset: new Date().getTimezoneOffset()
+        timezoneOffset: new Date().getTimezoneOffset(),
+        recoveryClockOut: recoveryClockOut || undefined
       });
       localStorage.removeItem('vt_active_shift');
       triggerSync();
