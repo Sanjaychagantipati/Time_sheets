@@ -3,6 +3,7 @@ import { timesheetService } from '../services/timesheetService';
 import CreateEmployeeModal from '../components/admin/CreateEmployeeModal';
 import EditLogModal from '../components/admin/EditLogModal';
 import ResolveExceptionModal from '../components/admin/ResolveExceptionModal';
+import LiveStatusWidget from '../components/admin/LiveStatusWidget';
 import MonthlyDownloadModal from '../components/admin/MonthlyDownloadModal';
 import HolidayManagementModal from '../components/admin/HolidayManagementModal';
 import Toast from '../components/common/Toast';
@@ -32,6 +33,7 @@ import AttendanceTimeline from '../components/common/AttendanceTimeline';
 export default function AdminDashboard() {
   const [stats, setStats] = useState({ active: 0, employees: 0, clients: 0, timesheetsSubmittedToday: 0 });
   const [logs, setLogs] = useState([]);
+  const [todayLogs, setTodayLogs] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
@@ -102,7 +104,12 @@ export default function AdminDashboard() {
       setLogs(timesheets);
       setSelectedTimesheets((prev) => prev.filter((id) => timesheets.some((t) => t.id === id)));
 
-      // No chart updates needed
+      // Fetch today's timesheets for live status widget
+      const todayTimesheets = await timesheetService.getAdminTimesheets({
+        startDate: todayStr,
+        endDate: todayStr
+      });
+      setTodayLogs(todayTimesheets);
 
     } catch (err) {
       console.error(err);
@@ -301,6 +308,13 @@ export default function AdminDashboard() {
         </div>
 
       </div>
+
+      {/* Live Employee Status Dashboard */}
+      <LiveStatusWidget 
+        employees={employees} 
+        todayLogs={todayLogs} 
+        onRefresh={() => loadData(true)} 
+      />
 
       {/* 2. Quick Admin Actions Grid */}
       <div className="bg-[#111111] border border-[#2A2A2A] p-6 rounded-2xl shadow-xl">
