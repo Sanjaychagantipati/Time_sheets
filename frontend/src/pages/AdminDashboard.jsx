@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { timesheetService } from '../services/timesheetService';
 import CreateEmployeeModal from '../components/admin/CreateEmployeeModal';
 import EditLogModal from '../components/admin/EditLogModal';
@@ -18,11 +18,15 @@ import {
   FileSpreadsheet,
   Edit3,
   Trash2,
-  ClipboardX
+  ClipboardX,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { formatDateFriendly, formatTime12h } from '../utils/formatters';
 import { useClientCompanies } from '../context/ClientCompanyContext';
 import CreateCompanyModal from '../components/admin/CreateCompanyModal';
+import AttendanceTimeline from '../components/common/AttendanceTimeline';
+
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState({ active: 0, employees: 0, clients: 0, timesheetsSubmittedToday: 0 });
@@ -49,6 +53,14 @@ export default function AdminDashboard() {
 
   // Bulk Selection State
   const [selectedTimesheets, setSelectedTimesheets] = useState([]);
+  const [expandedTimesheetIds, setExpandedTimesheetIds] = useState([]);
+
+  const toggleTimesheetExpand = (id) => {
+    setExpandedTimesheetIds(prev => 
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
 
   const loadData = useCallback(async (isSilent = false) => {
     try {
@@ -487,67 +499,86 @@ export default function AdminDashboard() {
                 {logs.map((log, index) => {
                   const candidate = employees.find((u) => u.id === log.userId) || { name: 'Unknown Candidate' };
                   const isSelected = selectedTimesheets.includes(log.id);
+                  const isExpanded = expandedTimesheetIds.includes(log.id);
                   return (
-                    <tr key={log.id} className={`hover:bg-white/[0.02] transition duration-150 ${isSelected ? 'bg-white/[0.01]' : ''} ${index % 2 === 0 ? 'bg-black/10' : ''}`}>
-                      <td className="px-6 py-4">
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => toggleSelection(log.id)}
-                          className="rounded border-[#2A2A2A] bg-[#1A1A1A] text-[#FF7A00] focus:ring-[#FF7A00] focus:ring-offset-0 w-4 h-4 cursor-pointer accent-[#FF7A00] transition duration-200"
-                        />
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex flex-col">
-                          <span className="font-bold text-white">{candidate.name}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 font-semibold text-[#FF7A00]">{log.clientCompany || 'N/A'}</td>
-                      <td className="px-6 py-4 font-semibold">{formatDateFriendly(log.date)}</td>
-                      <td className="px-6 py-4">{formatTime12h(log.clockIn)}</td>
-                      <td className="px-6 py-4">
-                        {log.clockOut ? (
-                          formatTime12h(log.clockOut)
-                        ) : (
-                          <span className="text-[#FF7A00] animate-pulse font-semibold">Active...</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 font-bold text-white">
-                        {log.clockOut ? `${log.hours.toFixed(2)} hrs` : 'In Progress'}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`px-2.5 py-1 text-[10px] font-extrabold rounded-full border ${
-                          log.status === 'ACTIVE' 
-                            ? 'bg-green-500/10 text-green-400 border-green-500/20 animate-pulse' 
-                            : 'bg-orange-500/10 text-[#FF7A00] border-orange-500/20'
-                        }`}>
-                          {log.status === 'ACTIVE' ? 'Active' : 'Completed'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-xs text-[#B3B3B3] max-w-[200px] truncate" title={log.notes}>
-                        {log.notes || <span className="text-gray-600 italic">none</span>}
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="inline-flex gap-2">
-                          <button
-                            onClick={() => handleEditClick(log.id)}
-                            className="p-1.5 border border-white/10 hover:border-[#FF7A00] hover:bg-[#FF7A00]/10 text-gray-400 hover:text-[#FF7A00] rounded-xl transition cursor-pointer active:scale-95 duration-200"
-                            title="Edit Log"
-                            aria-label="Edit"
-                          >
-                            <Edit3 size={13} />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteLog(log.id)}
-                            className="p-1.5 border border-rose-500/20 hover:border-rose-500 hover:bg-rose-500/10 text-rose-400 hover:text-white rounded-xl transition cursor-pointer active:scale-95 duration-200"
-                            title="Delete Log"
-                            aria-label="Delete"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
+                    <React.Fragment key={log.id}>
+                      <tr className={`hover:bg-white/[0.02] transition duration-150 ${isSelected ? 'bg-white/[0.01]' : ''} ${index % 2 === 0 ? 'bg-black/10' : ''}`}>
+                        <td className="px-6 py-4">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleSelection(log.id)}
+                            className="rounded border-[#2A2A2A] bg-[#1A1A1A] text-[#FF7A00] focus:ring-[#FF7A00] focus:ring-offset-0 w-4 h-4 cursor-pointer accent-[#FF7A00] transition duration-200"
+                          />
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => toggleTimesheetExpand(log.id)}
+                              className="p-1 border border-white/5 hover:border-[#FF7A00]/50 hover:bg-[#FF7A00]/10 text-gray-500 hover:text-white rounded-lg transition cursor-pointer"
+                              title="Toggle Session Timeline"
+                            >
+                              {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                            </button>
+                            <span className="font-bold text-white">{candidate.name}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 font-semibold text-[#FF7A00]">{log.clientCompany || 'N/A'}</td>
+                        <td className="px-6 py-4 font-semibold">{formatDateFriendly(log.date)}</td>
+                        <td className="px-6 py-4">{formatTime12h(log.clockIn)}</td>
+                        <td className="px-6 py-4">
+                          {log.clockOut ? (
+                            formatTime12h(log.clockOut)
+                          ) : (
+                            <span className="text-[#FF7A00] animate-pulse font-semibold">Active...</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 font-bold text-white">
+                          {log.clockOut ? `${log.hours.toFixed(2)} hrs` : 'In Progress'}
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`px-2.5 py-1 text-[10px] font-extrabold rounded-full border ${
+                            log.status === 'ACTIVE' 
+                              ? 'bg-green-500/10 text-green-400 border-green-500/20 animate-pulse' 
+                              : 'bg-orange-500/10 text-[#FF7A00] border-orange-500/20'
+                          }`}>
+                            {log.status === 'ACTIVE' ? 'Active' : 'Completed'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-xs text-[#B3B3B3] max-w-[200px] truncate" title={log.notes}>
+                          {log.notes || <span className="text-gray-600 italic">none</span>}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="inline-flex gap-2">
+                            <button
+                              onClick={() => handleEditClick(log.id)}
+                              className="p-1.5 border border-white/10 hover:border-[#FF7A00] hover:bg-[#FF7A00]/10 text-gray-400 hover:text-[#FF7A00] rounded-xl transition cursor-pointer active:scale-95 duration-200"
+                              title="Edit Log"
+                              aria-label="Edit"
+                            >
+                              <Edit3 size={13} />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteLog(log.id)}
+                              className="p-1.5 border border-rose-500/20 hover:border-rose-500 hover:bg-rose-500/10 text-rose-400 hover:text-white rounded-xl transition cursor-pointer active:scale-95 duration-200"
+                              title="Delete Log"
+                              aria-label="Delete"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      {isExpanded && (
+                        <tr className="bg-black/30">
+                          <td colSpan={10} className="px-10 py-6 border-b border-[#2A2A2A]">
+                            <div className="max-w-4xl mx-auto">
+                              <AttendanceTimeline log={log} />
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                   );
                 })}
               </tbody>

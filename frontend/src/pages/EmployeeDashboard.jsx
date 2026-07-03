@@ -8,9 +8,12 @@ import {
   Calendar,
   CloudOff,
   FolderOpen,
-  RotateCw
+  RotateCw,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { formatDateFriendly, formatTime12h } from '../utils/formatters';
+import AttendanceTimeline from '../components/common/AttendanceTimeline';
 
 export default function EmployeeDashboard() {
   const { user } = useAuth();
@@ -21,6 +24,14 @@ export default function EmployeeDashboard() {
   const [visibleCount, setVisibleCount] = useState(10);
   const [toast, setToast] = useState(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [expandedLogIds, setExpandedLogIds] = useState([]);
+
+  const toggleLogExpand = (logId) => {
+    setExpandedLogIds(prev => 
+      prev.includes(logId) ? prev.filter(id => id !== logId) : [...prev, logId]
+    );
+  };
+
 
   // Monitor network status
   useEffect(() => {
@@ -230,8 +241,14 @@ export default function EmployeeDashboard() {
                     if (isToday) dateLabel = 'Today';
                     else if (isYesterday) dateLabel = 'Yesterday';
 
+                    const isExpanded = expandedLogIds.includes(log.id);
+
                     return (
-                      <div key={log.id} className="p-4 flex flex-col hover:bg-white/[0.01] transition duration-150">
+                      <div 
+                        key={log.id} 
+                        onClick={() => toggleLogExpand(log.id)}
+                        className="p-4 flex flex-col hover:bg-white/[0.02] cursor-pointer transition duration-150 select-none"
+                      >
                         <div className="flex items-center justify-between">
                           <div className="flex flex-col gap-0.5">
                             <span className="text-sm font-bold text-white flex items-center gap-1.5">
@@ -239,6 +256,7 @@ export default function EmployeeDashboard() {
                               {log.isOfflinePending && (
                                 <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" title="Offline Pending Sync" />
                               )}
+                              {isExpanded ? <ChevronUp size={14} className="text-gray-500 ml-1" /> : <ChevronDown size={14} className="text-gray-500 ml-1" />}
                             </span>
                             <span className="text-[10px] text-gray-500 font-semibold">{log.clientCompany}</span>
                           </div>
@@ -252,6 +270,7 @@ export default function EmployeeDashboard() {
                             </div>
                           </div>
                         </div>
+                        {isExpanded && <AttendanceTimeline log={log} />}
                       </div>
                     );
                   })}
