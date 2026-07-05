@@ -32,6 +32,8 @@ function urlBase64ToUint8Array(base64String) {
   return outputArray;
 }
 
+const VAPID_PUBLIC_KEY = "BNffv4fZimY6wUVx4Xb3-DhsNuxd3tJnGxj_sQ43LaDiPGFL_wPXpkq_KO4yIFJr0ir8pGwcNaUbJgUQGodBHn8";
+
 export default function EmployeeDashboard() {
   const { user } = useAuth();
   const [logs, setLogs] = useState([]);
@@ -61,9 +63,7 @@ export default function EmployeeDashboard() {
           try {
             let subscription = await registration.pushManager.getSubscription();
             if (!subscription) {
-              const keyRes = await api.get('/notifications/vapid-public-key');
-              const vapidPublicKey = keyRes.data.publicKey;
-              const convertedKey = urlBase64ToUint8Array(vapidPublicKey);
+              const convertedKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
               subscription = await registration.pushManager.subscribe({
                 userVisibleOnly: true,
                 applicationServerKey: convertedKey
@@ -94,10 +94,7 @@ export default function EmployeeDashboard() {
       const permission = await Notification.requestPermission();
       if (permission === 'granted') {
         const registration = await navigator.serviceWorker.ready;
-        const keyRes = await api.get('/notifications/vapid-public-key');
-        const vapidPublicKey = keyRes.data.publicKey;
-        
-        const convertedKey = urlBase64ToUint8Array(vapidPublicKey);
+        const convertedKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
         const subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: convertedKey
