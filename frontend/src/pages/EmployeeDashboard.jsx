@@ -10,10 +10,27 @@ import {
   FolderOpen,
   RotateCw,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  BellRing
 } from 'lucide-react';
 import { formatDateFriendly, formatTime12h } from '../utils/formatters';
 import AttendanceTimeline from '../components/common/AttendanceTimeline';
+import api from '../services/api';
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding)
+    .replace(/\-/g, '+')
+    .replace(/_/g, '/');
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
 
 export default function EmployeeDashboard() {
   const { user } = useAuth();
@@ -25,6 +42,78 @@ export default function EmployeeDashboard() {
   const [toast, setToast] = useState(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [expandedLogIds, setExpandedLogIds] = useState([]);
+  const [showNotificationBanner, setShowNotificationBanner] = useState(false);
+
+  // Check notification permission on mount
+  useEffect(() => {
+    if (user && 'Notification' in window && 'serviceWorker' in navigator) {
+      if (Notification.permission === 'default' && !localStorage.getItem('vt_dismiss_notifications')) {
+        setShowNotificationBanner(true);
+      }
+    }
+  }, [user]);
+
+  // Auto-subscribe/renew registration if permission is already granted
+  useEffect(() => {
+    if (user && 'Notification' in window && 'serviceWorker' in navigator) {
+      if (Notification.permission === 'granted') {
+        navigator.serviceWorker.ready.then(async (registration) => {
+          try {
+            let subscription = await registration.pushManager.getSubscription();
+            if (!subscription) {
+              const keyRes = await api.get('/notifications/vapid-public-key');
+              const vapidPublicKey = keyRes.data.publicKey;
+              const convertedKey = urlBase64ToUint8Array(vapidPublicKey);
+              subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: convertedKey
+              });
+            }
+            // Sync with backend
+            await api.post('/notifications/subscribe', {
+              userId: user.id,
+              subscription
+            });
+          } catch (err) {
+            console.error('Error syncing push subscription on load', err);
+          }
+        });
+      }
+    }
+  }, [user]);
+
+  const handleEnableNotifications = async () => {
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        const registration = await navigator.serviceWorker.ready;
+        const keyRes = await api.get('/notifications/vapid-public-key');
+        const vapidPublicKey = keyRes.data.publicKey;
+        
+        const convertedKey = urlBase64ToUint8Array(vapidPublicKey);
+        const subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: convertedKey
+        });
+
+        await api.post('/notifications/subscribe', {
+          userId: user.id,
+          subscription
+        });
+
+        setToast({ message: 'Notifications enabled successfully!', type: 'success' });
+      }
+      setShowNotificationBanner(false);
+    } catch (err) {
+      console.error('Failed to enable notifications', err);
+      setToast({ message: 'Failed to enable notifications.', type: 'error' });
+    }
+  };
+
+  const handleDismissNotifications = () => {
+    localStorage.setItem('vt_dismiss_notifications', 'true');
+    setShowNotificationBanner(false);
+  };
 
   const toggleLogExpand = (logId) => {
     setExpandedLogIds(prev => 
@@ -141,6 +230,35 @@ export default function EmployeeDashboard() {
         <div className="bg-orange-500/10 border border-orange-500/20 text-[#FF7A00] px-4 py-3 rounded-xl flex items-center gap-2 text-sm font-bold animate-pulse">
           <CloudOff size={16} className="shrink-0" />
           <span>Offline Mode. Attendance events will sync when back online.</span>
+        </div>
+      )}
+
+      {/* Push Notification permission request banner */}
+      {showNotificationBanner && (
+        <div className="bg-[#111111] border border-[#FF7A00]/30 p-5 rounded-2xl shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4 animate-fade-in">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-orange-500/10 text-[#FF7A00] flex items-center justify-center shrink-0">
+              <BellRing size={20} />
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-sm font-bold text-white">Enable Push Notifications</span>
+              <span className="text-xs text-gray-400">Allow Vergil Tempo to send shift and clock-out reminders directly to your device.</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2.5 shrink-0 self-end md:self-auto">
+            <button
+              onClick={handleDismissNotifications}
+              className="px-4 py-2 border border-white/5 hover:border-gray-500 text-gray-400 hover:text-white rounded-xl text-xs font-semibold transition cursor-pointer"
+            >
+              Later
+            </button>
+            <button
+              onClick={handleEnableNotifications}
+              className="px-4 py-2 bg-[#FF7A00] hover:bg-[#FF8C1A] text-white rounded-xl text-xs font-bold transition cursor-pointer shadow-lg shadow-[#FF7A00]/10"
+            >
+              Allow Notifications
+            </button>
+          </div>
         </div>
       )}
 
