@@ -12,15 +12,18 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { userId, subscription } = body;
 
-    if (!userId || !subscription || !subscription.endpoint || !subscription.keys) {
-      return NextResponse.json({ error: "Missing subscription payload fields" }, { status: 400 });
+    if (!userId || !subscription) {
+      return NextResponse.json({ error: "Missing subscription payload" }, { status: 400 });
     }
 
     const { endpoint, keys } = subscription;
-    const { p256dh, auth } = keys;
+    if (!endpoint || !keys) {
+      return NextResponse.json({ error: "Missing subscription endpoint or keys" }, { status: 400 });
+    }
 
+    const { p256dh, auth } = keys;
     if (!p256dh || !auth) {
-      return NextResponse.json({ error: "Missing subscription key credentials" }, { status: 400 });
+      return NextResponse.json({ error: "Missing subscription key credentials (p256dh or auth)" }, { status: 400 });
     }
 
     // Verify user exists

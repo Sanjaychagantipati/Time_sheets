@@ -69,10 +69,17 @@ export default function EmployeeDashboard() {
                 applicationServerKey: convertedKey
               });
             }
-            // Sync with backend
+            // Sync with backend (safely format to JSON to ensure keys are serialized)
+            const subJson = subscription.toJSON();
             await api.post('/notifications/subscribe', {
               userId: user.id,
-              subscription
+              subscription: {
+                endpoint: subJson.endpoint,
+                keys: {
+                  p256dh: subJson.keys?.p256dh || '',
+                  auth: subJson.keys?.auth || ''
+                }
+              }
             });
           } catch (err) {
             console.error('Error syncing push subscription on load', err);
@@ -96,9 +103,16 @@ export default function EmployeeDashboard() {
           applicationServerKey: convertedKey
         });
 
+        const subJson = subscription.toJSON();
         await api.post('/notifications/subscribe', {
           userId: user.id,
-          subscription
+          subscription: {
+            endpoint: subJson.endpoint,
+            keys: {
+              p256dh: subJson.keys?.p256dh || '',
+              auth: subJson.keys?.auth || ''
+            }
+          }
         });
 
         setToast({ message: 'Notifications enabled successfully!', type: 'success' });
