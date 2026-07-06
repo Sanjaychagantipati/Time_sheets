@@ -18,6 +18,11 @@ export async function GET(req: NextRequest) {
             name: true,
             username: true,
             role: true,
+            clients: {
+              select: {
+                name: true,
+              },
+            },
           },
         },
       },
@@ -28,6 +33,7 @@ export async function GET(req: NextRequest) {
       id: lf.id,
       userId: lf.user_id,
       employeeName: lf.users.name,
+      clientCompany: lf.users.clients ? lf.users.clients.name : "N/A",
       leaveType: lf.leave_type,
       startDate: lf.start_date.toISOString().split("T")[0],
       endDate: lf.end_date.toISOString().split("T")[0],
@@ -78,6 +84,11 @@ export async function POST(req: NextRequest) {
         users: {
           select: {
             name: true,
+            clients: {
+              select: {
+                name: true,
+              },
+            },
           },
         },
       },
@@ -89,6 +100,7 @@ export async function POST(req: NextRequest) {
         id: leave.id,
         userId: leave.user_id,
         employeeName: leave.users.name,
+        clientCompany: leave.users.clients ? leave.users.clients.name : "N/A",
         leaveType: leave.leave_type,
         startDate: leave.start_date.toISOString().split("T")[0],
         endDate: leave.end_date.toISOString().split("T")[0],

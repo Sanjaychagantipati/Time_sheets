@@ -218,7 +218,7 @@ export async function GET(req: NextRequest) {
       } else if (isHoliday) {
         statusStr = holidayMap.get(dateStr);
       } else if (leaveToday) {
-        statusStr = `Leave: ${leaveToday.leave_type}`;
+        statusStr = "Leave";
       } else {
         statusStr = "ABSENT";
       }

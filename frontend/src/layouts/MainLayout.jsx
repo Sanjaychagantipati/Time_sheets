@@ -1,5 +1,5 @@
 import { useAuth } from '../context/AuthContext';
-import { Clock, LayoutDashboard, LogOut, Settings } from 'lucide-react';
+import { Clock, LayoutDashboard, LogOut, Settings, Calendar } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 
 export default function MainLayout({ children }) {
@@ -53,6 +53,17 @@ export default function MainLayout({ children }) {
                 >
                   <Settings size={16} />
                   <span>Settings</span>
+                </NavLink>
+                <NavLink
+                  to="/admin/leaves"
+                  className={({ isActive }) =>
+                    `px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition ${
+                      isActive ? 'bg-[#FF7A00] text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                    }`
+                  }
+                >
+                  <Calendar size={16} />
+                  <span>Leaves</span>
                 </NavLink>
               </>
             ) : (
@@ -123,6 +134,17 @@ export default function MainLayout({ children }) {
           >
             <Settings size={18} />
             <span className="mt-1">Settings</span>
+          </NavLink>
+          <NavLink
+            to="/admin/leaves"
+            className={({ isActive }) =>
+              `flex flex-col items-center text-[10px] font-medium transition ${
+                isActive ? 'text-[#FF7A00]' : 'text-gray-400'
+              }`
+            }
+          >
+            <Calendar size={18} />
+            <span className="mt-1">Leaves</span>
           </NavLink>
           <button
             onClick={handleLogout}

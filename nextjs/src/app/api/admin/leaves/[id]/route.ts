@@ -34,6 +34,11 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
         users: {
           select: {
             name: true,
+            clients: {
+              select: {
+                name: true,
+              },
+            },
           },
         },
       },
@@ -45,6 +50,7 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
         id: updated.id,
         userId: updated.user_id,
         employeeName: updated.users.name,
+        clientCompany: updated.users.clients ? updated.users.clients.name : "N/A",
         leaveType: updated.leave_type,
         startDate: updated.start_date.toISOString().split("T")[0],
         endDate: updated.end_date.toISOString().split("T")[0],

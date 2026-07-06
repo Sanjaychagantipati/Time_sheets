@@ -45,7 +45,7 @@ function LiveEmployeeRow({ log, isForgot }) {
   );
 }
 
-export default function LiveStatusWidget({ employees, todayLogs, onRefresh }) {
+export default function LiveStatusWidget({ employees, todayLogs, leaves = [], onRefresh }) {
   const [searchName, setSearchName] = useState('');
   const [searchClient, setSearchClient] = useState('all');
   const [searchStatus, setSearchStatus] = useState('all');
@@ -71,8 +71,14 @@ export default function LiveStatusWidget({ employees, todayLogs, onRefresh }) {
   const currentlyWorking = isPastRecoveryThreshold ? [] : activeLogs;
   const forgotClockOut = isPastRecoveryThreshold ? activeLogs : [];
 
+  const todayStr = new Date().toISOString().split('T')[0];
+  const onLeaveTodayUsers = leaves.filter(lf => {
+    return lf.startDate <= todayStr && lf.endDate >= todayStr;
+  });
+
   const notClockedInCount = employees.filter(
-    emp => !todayLogs.some(log => log.userId === emp.id)
+    emp => !todayLogs.some(log => log.userId === emp.id) &&
+           !onLeaveTodayUsers.some(lf => lf.userId === emp.id)
   ).length;
 
   // Get unique clients for filter
@@ -111,8 +117,8 @@ export default function LiveStatusWidget({ employees, todayLogs, onRefresh }) {
         </button>
       </div>
 
-      {/* 4 Cards Summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* 5 Cards Summary */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 animate-fade-in">
         
         {/* Currently Working */}
         <div className="bg-[#111111] border border-[#2A2A2A] p-4.5 rounded-2xl flex items-center gap-4 hover:border-green-500/30 transition duration-300">
@@ -144,6 +150,17 @@ export default function LiveStatusWidget({ employees, todayLogs, onRefresh }) {
           <div className="flex flex-col">
             <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Not Clocked In</span>
             <span className="text-xl font-bold text-white mt-0.5">{notClockedInCount}</span>
+          </div>
+        </div>
+
+        {/* On Leave Today */}
+        <div className="bg-[#111111] border border-[#2A2A2A] p-4.5 rounded-2xl flex items-center gap-4 hover:border-blue-500/30 transition duration-300">
+          <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center shrink-0">
+            <Users size={18} />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">On Leave Today</span>
+            <span className="text-xl font-bold text-white mt-0.5">{onLeaveTodayUsers.length}</span>
           </div>
         </div>
 
