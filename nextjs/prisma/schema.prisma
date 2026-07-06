@@ -16,6 +16,8 @@ model attendance_sessions {
   clock_out    DateTime?   @db.Time(6)
   hours        Decimal?    @db.Decimal(4, 2)
   timesheets   timesheets @relation(fields: [timesheet_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([timesheet_id])
 }
 
 model clients {
@@ -59,6 +61,11 @@ model timesheets {
   attendance_sessions attendance_sessions[]
   clients             clients               @relation(fields: [client_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   users               users                 @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([user_id])
+  @@index([client_id])
+  @@index([date])
+  @@index([user_id, date])
 }
 
 model users {
@@ -84,6 +91,8 @@ model push_subscriptions {
   auth       String
   created_at DateTime @default(now()) @db.Timestamp(6)
   users      users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([user_id])
 }
 
 model company_settings {
@@ -111,4 +120,7 @@ model leaves {
   created_at DateTime? @default(now()) @db.Timestamp(6)
   updated_at DateTime? @default(now()) @db.Timestamp(6)
   users      users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([user_id])
+  @@index([start_date, end_date])
 }

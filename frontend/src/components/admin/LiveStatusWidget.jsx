@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Play, Square, Users, AlertTriangle, Search, Filter, RotateCw } from 'lucide-react';
 import { formatTime12h } from '../../utils/formatters';
 
@@ -64,40 +64,61 @@ export default function LiveStatusWidget({ employees, todayLogs, leaves = [], on
   const now = new Date();
   const isPastRecoveryThreshold = now.getHours() > 20 || (now.getHours() === 20 && now.getMinutes() >= 30);
 
-  // 2. Compute live categories
-  const activeLogs = todayLogs.filter(log => log.clockOut === null);
-  const clockedOutLogs = todayLogs.filter(log => log.clockOut !== null);
+  // 2. Compute memoized live stats and lists
+  const {
+    currentlyWorking,
+    clockedOutLogs,
+    notClockedInCount,
+    onLeaveTodayUsers,
+    forgotClockOut,
+    uniqueClients,
+    activeList
+  } = useMemo(() => {
+    const activeLogs = todayLogs.filter(log => log.clockOut === null);
+    const clockedOutLogs = todayLogs.filter(log => log.clockOut !== null);
 
-  const currentlyWorking = isPastRecoveryThreshold ? [] : activeLogs;
-  const forgotClockOut = isPastRecoveryThreshold ? activeLogs : [];
+    const currentlyWorking = isPastRecoveryThreshold ? [] : activeLogs;
+    const forgotClockOut = isPastRecoveryThreshold ? activeLogs : [];
 
-  const todayStr = new Date().toISOString().split('T')[0];
-  const onLeaveTodayUsers = leaves.filter(lf => {
-    return lf.startDate <= todayStr && lf.endDate >= todayStr;
-  });
+    const todayStr = new Date().toISOString().split('T')[0];
+    const onLeaveTodayUsers = leaves.filter(lf => {
+      return lf.startDate <= todayStr && lf.endDate >= todayStr;
+    });
 
-  const notClockedInCount = employees.filter(
-    emp => !todayLogs.some(log => log.userId === emp.id) &&
-           !onLeaveTodayUsers.some(lf => lf.userId === emp.id)
-  ).length;
+    const notClockedInCount = employees.filter(
+      emp => !todayLogs.some(log => log.userId === emp.id) &&
+             !onLeaveTodayUsers.some(lf => lf.userId === emp.id)
+    ).length;
 
-  // Get unique clients for filter
-  const uniqueClients = [...new Set(employees.map(emp => emp.clientCompany).filter(Boolean))].sort();
+    const uniqueClients = [...new Set(employees.map(emp => emp.clientCompany).filter(Boolean))].sort();
 
-  // 3. Prepare filtered active list for display
-  const activeList = activeLogs.map(log => ({
-    ...log,
-    isForgot: isPastRecoveryThreshold
-  }));
+    const activeList = activeLogs.map(log => ({
+      ...log,
+      isForgot: isPastRecoveryThreshold
+    }));
 
-  const filteredActiveList = activeList.filter(log => {
-    const matchesName = log.employeeName.toLowerCase().includes(searchName.toLowerCase());
-    const matchesClient = searchClient === 'all' || log.clientCompany === searchClient;
-    const matchesStatus = searchStatus === 'all' || 
-      (searchStatus === 'working' && !log.isForgot) || 
-      (searchStatus === 'forgot' && log.isForgot);
-    return matchesName && matchesClient && matchesStatus;
-  });
+    return {
+      currentlyWorking,
+      clockedOutLogs,
+      notClockedInCount,
+      onLeaveTodayUsers,
+      forgotClockOut,
+      uniqueClients,
+      activeList
+    };
+  }, [employees, todayLogs, leaves, isPastRecoveryThreshold]);
+
+  // 3. Prepare filtered active list for display (memoized on filter inputs)
+  const filteredActiveList = useMemo(() => {
+    return activeList.filter(log => {
+      const matchesName = log.employeeName.toLowerCase().includes(searchName.toLowerCase());
+      const matchesClient = searchClient === 'all' || log.clientCompany === searchClient;
+      const matchesStatus = searchStatus === 'all' || 
+        (searchStatus === 'working' && !log.isForgot) || 
+        (searchStatus === 'forgot' && log.isForgot);
+      return matchesName && matchesClient && matchesStatus;
+    });
+  }, [activeList, searchName, searchClient, searchStatus]);
 
   return (
     <div className="flex flex-col gap-6 w-full">
