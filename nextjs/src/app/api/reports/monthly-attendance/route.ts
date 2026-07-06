@@ -63,6 +63,15 @@ export async function GET(req: NextRequest) {
       holidayMap.set(h.holiday_date.toISOString().split("T")[0], h.holiday_name);
     });
 
+    // Fetch employee approved leaves
+    const leaves = await prisma.leaves.findMany({
+      where: {
+        user_id: employeeId,
+        start_date: { lte: end },
+        end_date: { gte: start },
+      },
+    });
+
     // Map logs
     const logMap = new Map();
     logs.forEach((l) => {
@@ -162,13 +171,15 @@ export async function GET(req: NextRequest) {
 
       const dayLogs = logMap.get(dateStr);
 
+      const leaveToday = leaves.find((lf) => {
+        const startStr = lf.start_date.toISOString().split("T")[0];
+        const endStr = lf.end_date.toISOString().split("T")[0];
+        return dateStr >= startStr && dateStr <= endStr;
+      });
+
       if (dateObj > today) {
         // Future date
         statusStr = "";
-      } else if (isWeekend) {
-        statusStr = "Weekend";
-      } else if (isHoliday) {
-        statusStr = holidayMap.get(dateStr);
       } else if (dayLogs && dayLogs.length > 0) {
         statusStr = "Present";
         let earliestClockIn: Date | null = null;
@@ -202,12 +213,18 @@ export async function GET(req: NextRequest) {
         logInStr = formatTime(earliestClockIn);
         logOutStr = formatTime(latestClockOut);
         hoursStr = dayTotalHours > 0 ? dayTotalHours.toFixed(2) : "-";
+      } else if (isWeekend) {
+        statusStr = "Weekend";
+      } else if (isHoliday) {
+        statusStr = holidayMap.get(dateStr);
+      } else if (leaveToday) {
+        statusStr = `Leave: ${leaveToday.leave_type}`;
       } else {
         statusStr = "ABSENT";
       }
 
-      // Draw row background for weekends/holidays (light gray)
-      if (isWeekend || isHoliday) {
+      // Draw row background for weekends/holidays/leaves (light gray)
+      if (isWeekend || isHoliday || leaveToday) {
         doc.rect(30, currentY, 535, 18).fill("#F5F5F5");
       }
 
@@ -220,7 +237,7 @@ export async function GET(req: NextRequest) {
         .stroke();
 
       // Draw row text
-      doc.fontSize(8).font("Helvetica").fillColor(isWeekend || isHoliday ? "#777777" : "#333333");
+      doc.fontSize(8).font("Helvetica").fillColor(isWeekend || isHoliday || leaveToday ? "#777777" : "#333333");
 
       let rowX = 30;
       const rowData = [
@@ -229,14 +246,14 @@ export async function GET(req: NextRequest) {
         logInStr,
         logOutStr,
         hoursStr,
-        isWeekend || isHoliday ? "-" : employee.name,
-        isWeekend || isHoliday ? "-" : clientCompany,
+        isWeekend || isHoliday || leaveToday ? "-" : employee.name,
+        isWeekend || isHoliday || leaveToday ? "-" : clientCompany,
         statusStr,
       ];
 
       rowData.forEach((val, idx) => {
         const col = columns[idx];
-        let textColor = isWeekend || isHoliday ? "#777777" : "#333333";
+        let textColor = isWeekend || isHoliday || leaveToday ? "#777777" : "#333333";
         let textFont = "Helvetica";
 
         if (idx === 7) {
@@ -246,6 +263,9 @@ export async function GET(req: NextRequest) {
             textFont = "Helvetica-Bold";
           } else if (val === "ABSENT") {
             textColor = "#B71C1C";
+            textFont = "Helvetica-Bold";
+          } else if (val.startsWith("Leave") || val.startsWith("LEAVE")) {
+            textColor = "#FF7A00";
             textFont = "Helvetica-Bold";
           }
         }

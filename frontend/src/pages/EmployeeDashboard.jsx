@@ -162,12 +162,25 @@ export default function EmployeeDashboard() {
     }
   }, []);
 
+  const [isOnLeave, setIsOnLeave] = useState(false);
+  const [leaveType, setLeaveType] = useState('');
+
   const checkStatus = useCallback(async () => {
     if (!user) return;
     try {
       const res = await timesheetService.getActiveClockIn(user.id);
       setIsClockedIn(res.hasActive);
       setActiveLog(res.log);
+      if (res.isHoliday) {
+        setTodayHolidayName(res.holidayName);
+      }
+      if (res.isOnLeave) {
+        setIsOnLeave(true);
+        setLeaveType(res.leaveType);
+      } else {
+        setIsOnLeave(false);
+        setLeaveType('');
+      }
     } catch (err) {
       console.error("Failed to check active status", err);
     }
@@ -319,6 +332,19 @@ export default function EmployeeDashboard() {
         </div>
       )}
 
+      {/* Leave Alert Banner */}
+      {isOnLeave && (
+        <div className="bg-orange-500/10 border border-[#FF7A00]/30 text-[#FF7A00] px-5 py-4 rounded-xl flex flex-col gap-1 text-sm animate-fade-in">
+          <div className="font-extrabold uppercase tracking-wider flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#FF7A00] animate-pulse shadow-[0_0_8px_#FF7A00]" />
+            <span>On Approved Leave</span>
+          </div>
+          <p className="text-gray-300 text-xs font-semibold">
+            Today you are on approved leave ({leaveType} Leave). Attendance logging features are disabled.
+          </p>
+        </div>
+      )}
+
       {/* Exception Reminder Banner */}
       {employeeExceptions.length > 0 && (
         <div className="bg-red-500/10 border border-red-500/30 text-red-200 px-5 py-4 rounded-xl flex flex-col gap-1.5 text-sm animate-fade-in">
@@ -369,6 +395,8 @@ export default function EmployeeDashboard() {
               holidayName={todayHolidayName} 
               isWeekend={isWeekend}
               settings={settings}
+              isOnLeave={isOnLeave}
+              leaveType={leaveType}
             />
           </div>
         </div>

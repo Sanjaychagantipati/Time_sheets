@@ -6,6 +6,7 @@ import ResolveExceptionModal from '../components/admin/ResolveExceptionModal';
 import LiveStatusWidget from '../components/admin/LiveStatusWidget';
 import MonthlyDownloadModal from '../components/admin/MonthlyDownloadModal';
 import HolidayManagementModal from '../components/admin/HolidayManagementModal';
+import LeaveManagementModal from '../components/admin/LeaveManagementModal';
 import Toast from '../components/common/Toast';
 import {
   Users,
@@ -54,6 +55,7 @@ export default function AdminDashboard() {
   const [isDownloadOpen, setIsDownloadOpen] = useState(false);
   const [isCompanyOpen, setIsCompanyOpen] = useState(false);
   const [isHolidayOpen, setIsHolidayOpen] = useState(false);
+  const [isLeaveOpen, setIsLeaveOpen] = useState(false);
   const [selectedLogId, setSelectedLogId] = useState(null);
 
   const handleResolveException = (exc) => {
@@ -367,6 +369,14 @@ export default function AdminDashboard() {
           >
             <Calendar size={20} className="text-[#FF7A00]" />
             <span className="text-xs font-semibold text-white">Holiday Management</span>
+          </button>
+
+          <button 
+            onClick={() => setIsLeaveOpen(true)}
+            className="h-24 p-4 rounded-2xl border border-[#2A2A2A] hover:border-[#FF7A00]/60 bg-[#1A1A1A] hover:bg-[#1A1A1A]/80 flex flex-col items-center justify-center gap-2 text-center transition-all duration-300 hover:shadow-lg hover:shadow-[#FF7A00]/5 hover:-translate-y-0.5 cursor-pointer"
+          >
+            <Users size={20} className="text-[#FF7A00]" />
+            <span className="text-xs font-semibold text-white">Leave Management</span>
           </button>
 
         </div>
@@ -776,6 +786,12 @@ export default function AdminDashboard() {
       <HolidayManagementModal
         isOpen={isHolidayOpen}
         onClose={() => setIsHolidayOpen(false)}
+        setToast={setToast}
+      />
+
+      <LeaveManagementModal
+        isOpen={isLeaveOpen}
+        onClose={() => setIsLeaveOpen(false)}
         setToast={setToast}
       />
 

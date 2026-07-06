@@ -44,6 +44,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Reject clock-in if user is on approved leave today
+    const leave = await prisma.leaves.findFirst({
+      where: {
+        user_id: user.id,
+        start_date: { lte: eventDate },
+        end_date: { gte: eventDate },
+      },
+    });
+    if (leave) {
+      return NextResponse.json(
+        { error: `Today you are on approved leave (${leave.leave_type}). Clock-in is disabled.` },
+        { status: 403 }
+      );
+    }
+
     const dbUser = await prisma.users.findUnique({
       where: { id: user.id },
     });

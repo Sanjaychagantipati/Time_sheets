@@ -48,6 +48,20 @@ export async function GET(req: NextRequest) {
       });
     }
 
+    // Check if today is a company holiday
+    const holiday = await prisma.holidays.findFirst({
+      where: {
+        holiday_date: eventDate,
+        is_active: true,
+      },
+    });
+    if (!isTest && holiday) {
+      return NextResponse.json({
+        message: `Today is a company holiday (${holiday.holiday_name}). Reminders are skipped.`,
+        serverTimeIST: `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`
+      });
+    }
+
     const [startH, startM] = settings.office_start_time.split(":").map(Number);
     const [endH, endM] = settings.office_end_time.split(":").map(Number);
 
@@ -92,6 +106,18 @@ export async function GET(req: NextRequest) {
     let purgedCount = 0;
 
     for (const cand of candidates) {
+      // Check if user is on approved leave today
+      const leave = await prisma.leaves.findFirst({
+        where: {
+          user_id: cand.id,
+          start_date: { lte: eventDate },
+          end_date: { gte: eventDate },
+        },
+      });
+      if (leave) {
+        continue;
+      }
+
       // Find today's timesheet for candidate
       const todayTimesheet = await prisma.timesheets.findFirst({
         where: {

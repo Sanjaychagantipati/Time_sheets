@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkAuth } from "@/lib/auth";
+import { getCompanySettings } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,20 @@ export async function GET(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
+    const settings = await getCompanySettings();
+    
+    // Get today's local date based on settings timezone
+    const localDateStr = new Intl.DateTimeFormat("en-US", {
+      timeZone: settings.timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    }).format(new Date());
+
+    const [m, d, y] = localDateStr.split("/");
+    const todayLocal = new Date(`${y}-${m}-${d}`);
+
+    // 1. Check active timesheet
     const activeTimesheet = await prisma.timesheets.findFirst({
       where: {
         user_id: user.id,
@@ -48,6 +63,41 @@ export async function GET(req: NextRequest) {
           notes: activeTimesheet.notes,
           clientCompany: activeTimesheet.clients.name,
         },
+      });
+    }
+
+    // 2. Check if today is a company holiday
+    const holiday = await prisma.holidays.findFirst({
+      where: {
+        holiday_date: todayLocal,
+        is_active: true,
+      },
+    });
+
+    if (holiday) {
+      return NextResponse.json({
+        hasActive: false,
+        log: null,
+        isHoliday: true,
+        holidayName: holiday.holiday_name,
+      });
+    }
+
+    // 3. Check if user is on approved leave today
+    const leave = await prisma.leaves.findFirst({
+      where: {
+        user_id: user.id,
+        start_date: { lte: todayLocal },
+        end_date: { gte: todayLocal },
+      },
+    });
+
+    if (leave) {
+      return NextResponse.json({
+        hasActive: false,
+        log: null,
+        isOnLeave: true,
+        leaveType: leave.leave_type,
       });
     }
 

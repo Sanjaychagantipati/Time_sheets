@@ -9,7 +9,9 @@ export default function ClockCard({
   isHoliday = false, 
   holidayName = '', 
   isWeekend = false, 
-  settings = null 
+  settings = null,
+  isOnLeave = false,
+  leaveType = ''
 }) {
   const { user } = useAuth();
   const [isClockedIn, setIsClockedIn] = useState(false);
@@ -333,9 +335,9 @@ export default function ClockCard({
 
             <button
               onClick={isClockedIn ? () => setShowConfirm(true) : handleClockIn}
-              disabled={submitting || isHoliday || isWeekend}
+              disabled={submitting || isHoliday || isWeekend || isOnLeave}
               className={`w-full py-4 text-base font-bold rounded-xl flex items-center justify-center gap-2 transition duration-300 cursor-pointer disabled:cursor-not-allowed ${
-                isHoliday || isWeekend
+                isHoliday || isWeekend || isOnLeave
                   ? 'bg-[#1A1A1A] text-gray-500 border border-[#2A2A2A] hover:shadow-none'
                   : isClockedIn
                     ? 'bg-[#2A2A2A] hover:bg-[#333333] text-white border border-[#3A3A3A] hover:shadow-[0_0_15px_rgba(255,122,0,0.1)]'
@@ -350,7 +352,9 @@ export default function ClockCard({
                     ? 'Holiday - Clock In Disabled'
                     : isWeekend
                       ? 'Weekend - Clock In Disabled'
-                      : (isClockedIn ? 'Clock Out' : 'Clock In')}
+                      : isOnLeave
+                        ? 'On Approved Leave'
+                        : (isClockedIn ? 'Clock Out' : 'Clock In')}
               </span>
             </button>
           </>
