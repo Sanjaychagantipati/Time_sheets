@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Play, Square, Users, AlertTriangle, Search, Filter, RotateCw } from 'lucide-react';
 import { formatTime12h } from '../../utils/formatters';
+import { useClientCompanies } from '../../context/ClientCompanyContext';
 
 // Sub-component to compute elapsed time dynamically
 function LiveEmployeeRow({ log, isForgot }) {
@@ -46,6 +47,7 @@ function LiveEmployeeRow({ log, isForgot }) {
 }
 
 export default function LiveStatusWidget({ employees, todayLogs, leaves = [], onRefresh }) {
+  const { companies } = useClientCompanies();
   const [searchName, setSearchName] = useState('');
   const [searchClient, setSearchClient] = useState('all');
   const [searchStatus, setSearchStatus] = useState('all');
@@ -228,7 +230,7 @@ export default function LiveStatusWidget({ employees, todayLogs, leaves = [], on
                 className="bg-transparent text-white text-xs focus:outline-none border-none pr-2 cursor-pointer"
               >
                 <option value="all" className="bg-[#1A1A1A] text-white">All Clients</option>
-                {uniqueClients.map(client => (
+                {companies.map(client => (
                   <option key={client} value={client} className="bg-[#1A1A1A] text-white">{client}</option>
                 ))}
               </select>

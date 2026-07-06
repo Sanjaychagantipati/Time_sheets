@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { name, username, password, role, clientId } = body;
+    const { name, username, password, role, clientId, clientCompany } = body;
 
     if (!name || !username || !password || !role) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -58,6 +58,23 @@ export async function POST(req: NextRequest) {
     const hashedPassword = bcryptjs.hashSync(password, 10);
     const userId = crypto.randomUUID();
 
+    let finalClientId: number | null = null;
+    if (clientId) {
+      finalClientId = parseInt(clientId);
+    } else if (clientCompany) {
+      const clientRecord = await prisma.clients.findFirst({
+        where: {
+          name: {
+            equals: clientCompany,
+            mode: "insensitive",
+          },
+        },
+      });
+      if (clientRecord) {
+        finalClientId = clientRecord.id;
+      }
+    }
+
     const newUser = await prisma.users.create({
       data: {
         id: userId,
@@ -65,7 +82,7 @@ export async function POST(req: NextRequest) {
         username,
         password_hash: hashedPassword,
         role: role.toUpperCase(),
-        client_id: clientId ? parseInt(clientId) : null,
+        client_id: finalClientId,
         hourly_rate: 0.0,
       },
       include: { clients: true },

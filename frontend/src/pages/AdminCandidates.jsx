@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Users, Trash2, Search, Plus, RotateCw } from 'lucide-react';
 import { timesheetService } from '../services/timesheetService';
+import { useClientCompanies } from '../context/ClientCompanyContext';
 import CreateEmployeeModal from '../components/admin/CreateEmployeeModal';
 import CreateCompanyModal from '../components/admin/CreateCompanyModal';
 import Toast from '../components/common/Toast';
 
 export default function AdminCandidates() {
+  const { companies } = useClientCompanies();
   const [employees, setEmployees] = useState([]);
   const [todayLogs, setTodayLogs] = useState([]);
   const [searchName, setSearchName] = useState('');
@@ -50,9 +52,6 @@ export default function AdminCandidates() {
       }
     }
   };
-
-  // Get unique clients for filter select dropdown
-  const uniqueClients = [...new Set(employees.map(emp => emp.clientCompany).filter(Boolean))].sort();
 
   // Filter candidates list
   const filteredEmployees = employees.filter(emp => {
@@ -127,7 +126,7 @@ export default function AdminCandidates() {
               className="w-full h-11 bg-[#1A1A1A] border border-white/5 text-xs text-white rounded-xl px-3.5 outline-none focus:border-[#FF7A00] transition cursor-pointer"
             >
               <option value="all">All Clients</option>
-              {uniqueClients.map((client) => (
+              {companies.map((client) => (
                 <option key={client} value={client}>{client}</option>
               ))}
             </select>

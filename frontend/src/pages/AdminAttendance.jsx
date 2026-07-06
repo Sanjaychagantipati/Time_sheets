@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Radio, History, SlidersHorizontal, Trash2, Edit3, ChevronDown, ChevronUp, RotateCw } from 'lucide-react';
 import { timesheetService } from '../services/timesheetService';
+import { useClientCompanies } from '../context/ClientCompanyContext';
 import api from '../services/api';
 import LiveStatusWidget from '../components/admin/LiveStatusWidget';
 import EditLogModal from '../components/admin/EditLogModal';
@@ -8,6 +9,7 @@ import AttendanceTimeline from '../components/common/AttendanceTimeline';
 import Toast from '../components/common/Toast';
 
 export default function AdminAttendance() {
+  const { companies } = useClientCompanies();
   const [activeTab, setActiveTab] = useState('live'); // 'live' or 'history'
   const [employees, setEmployees] = useState([]);
   const [todayLogs, setTodayLogs] = useState([]);
@@ -158,8 +160,7 @@ export default function AdminAttendance() {
     return `${displayHr}:${m} ${ampm}`;
   };
 
-  // Get client company list from employees mapping
-  const uniqueClients = [...new Set(employees.map(emp => emp.clientCompany).filter(Boolean))].sort();
+  // Get client company list from context
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in text-white">
@@ -256,7 +257,7 @@ export default function AdminAttendance() {
                   className="h-11 bg-[#1A1A1A] border border-[#2A2A2A] text-white rounded-xl px-3 text-xs outline-none focus:border-[#FF7A00] transition cursor-pointer"
                 >
                   <option value="all">All Clients</option>
-                  {uniqueClients.map((client) => (
+                  {companies.map((client) => (
                     <option key={client} value={client}>{client}</option>
                   ))}
                 </select>
