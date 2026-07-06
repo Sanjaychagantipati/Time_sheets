@@ -47,10 +47,21 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Handle HTML navigation requests (serve index.html for SPA routing offline)
-  if (event.request.mode === 'navigate') {
+  // Handle HTML navigation requests (serve index.html for SPA routing offline or if server returns 404/500)
+  const isNavigate = event.request.mode === 'navigate' || 
+                     (event.request.method === 'GET' && 
+                      event.request.headers.get('accept')?.includes('text/html'));
+
+  if (isNavigate) {
     event.respondWith(
-      fetch(event.request).catch(async () => {
+      fetch(event.request).then(async (networkResponse) => {
+        if (networkResponse && networkResponse.status === 200) {
+          return networkResponse;
+        }
+        // Fallback to cached index.html if network returns 404/500/etc.
+        const cachedResponse = await caches.match('/index.html');
+        return cachedResponse || networkResponse;
+      }).catch(async () => {
         const cachedResponse = await caches.match('/index.html');
         if (cachedResponse) {
           return cachedResponse;
