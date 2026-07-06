@@ -15,8 +15,8 @@ if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
 }
 
 export async function POST(req: NextRequest) {
-  // Allow admins or managers to send notifications, or candidates to self-test send
-  const { user, response } = await checkAuth(req, ["CANDIDATE", "ADMIN", "MANAGER"]);
+  // Allow admins or managers to send notifications, or employees to self-test send
+  const { user, response } = await checkAuth(req, ["EMPLOYEE", "ADMIN", "MANAGER", "CANDIDATE"]);
   if (response) return response;
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -34,9 +34,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields: userId, title, body" }, { status: 400 });
     }
 
-    // If candidate is requesting, ensure they only send to themselves
-    if (user.role === "CANDIDATE" && user.id !== userId) {
-      return NextResponse.json({ error: "Unauthorized: Candidates can only send push notifications to themselves" }, { status: 403 });
+    // If employee or candidate is requesting, ensure they only send to themselves
+    if ((user.role === "EMPLOYEE" || user.role === "CANDIDATE") && user.id !== userId) {
+      return NextResponse.json({ error: "Unauthorized: Employees/Candidates can only send push notifications to themselves" }, { status: 403 });
     }
 
     // Get push subscriptions for this user
