@@ -31,19 +31,23 @@ export default function AdminDashboard() {
       const todayStr = new Date().toISOString().split('T')[0];
 
       // Fetch overview operational stats & lists
-      const [statsRes, employeesList, todayTimesheets, leavesRes, exceptionsRes] = await Promise.all([
+      const [statsRes, employeesList, todayTimesheets, leavesRes, allTimesheets] = await Promise.all([
         timesheetService.getAdminStats(),
         timesheetService.getEmployeesList(),
         timesheetService.getAdminTimesheets({ startDate: todayStr, endDate: todayStr }),
         api.get('/admin/leaves'),
-        timesheetService.getExceptions()
+        timesheetService.getAdminTimesheets({})
       ]);
+
+      const computedExceptions = allTimesheets.filter(
+        (log) => log.clockOut === null && log.date < todayStr
+      );
 
       setStats(statsRes);
       setEmployees(employeesList);
       setTodayLogs(todayTimesheets);
       setLeaves(leavesRes.data || []);
-      setExceptions(exceptionsRes);
+      setExceptions(computedExceptions);
     } catch (err) {
       console.error(err);
       setToast({ message: 'Error loading dashboard overview.', type: 'error' });

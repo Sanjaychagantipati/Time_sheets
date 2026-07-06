@@ -1,0 +1,1 @@
+function e(e){if(!e)return``;let t=e.split(`-`);return new Date(t[0],t[1]-1,t[2]).toLocaleDateString(`en-US`,{weekday:`short`,month:`short`,day:`numeric`,year:`numeric`})}function t(e){if(!e)return``;let t=e.split(`:`),n=parseInt(t[0]),r=t[1],i=n>=12?`PM`:`AM`;return n%=12,n||=12,`${n}:${r} ${i}`}export{t as n,e as t};
