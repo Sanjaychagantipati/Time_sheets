@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkAuth } from "@/lib/auth";
 import { recalculateTimesheetAggregates, getCurrentISTTime } from "@/lib/attendance";
-
+import { getCompanySettings } from "@/lib/settings";
 
 export async function POST(req: NextRequest) {
   const { user, response } = await checkAuth(req, ["EMPLOYEE", "ADMIN"]);
@@ -10,6 +10,7 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
+    const settings = await getCompanySettings();
     const body = await req.json();
     const { notes, browser, operatingSystem, deviceType, screenResolution, recoveryClockOut } = body;
 
@@ -40,9 +41,27 @@ export async function POST(req: NextRequest) {
     let finalNotes = notes || null;
 
     if (recoveryClockOut) {
-      // 1. Validate that current server time is after 8:30 PM (20:30)
-      if (hour < 20 || (hour === 20 && minute < 30)) {
-        return NextResponse.json({ error: "Attendance recovery is only available after 08:30 PM" }, { status: 400 });
+      if (!settings.attendance_recovery_enabled) {
+        return NextResponse.json({ error: "Attendance recovery is currently disabled" }, { status: 400 });
+      }
+
+      // 1. Validate that current server time is after office end time + 2 hours (120 min)
+      const [endHour, endMin] = settings.office_end_time.split(":").map(Number);
+      const recoveryStartMin = endHour * 60 + endMin + 120;
+      const currentMin = hour * 60 + minute;
+
+      if (currentMin < recoveryStartMin) {
+        const startH = Math.floor(recoveryStartMin / 60) % 24;
+        const startM = recoveryStartMin % 60;
+        const formattedStart = `${String(startH).padStart(2, "0")}:${String(startM).padStart(2, "0")}`;
+        return NextResponse.json({ error: `Attendance recovery is only available after ${formattedStart}` }, { status: 400 });
+      }
+
+      // Validate recovery deadline (e.g. 23:59)
+      const [deadlineHour, deadlineMin] = settings.recovery_deadline.split(":").map(Number);
+      const deadlineTotalMin = deadlineHour * 60 + deadlineMin;
+      if (currentMin > deadlineTotalMin) {
+        return NextResponse.json({ error: `Attendance recovery deadline (${settings.recovery_deadline}) has passed` }, { status: 400 });
       }
 
       // 2. Validate that timesheet date is today

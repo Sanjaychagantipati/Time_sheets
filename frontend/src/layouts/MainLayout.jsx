@@ -1,5 +1,5 @@
 import { useAuth } from '../context/AuthContext';
-import { Clock, LayoutDashboard, LogOut } from 'lucide-react';
+import { Clock, LayoutDashboard, LogOut, Settings } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 
 export default function MainLayout({ children }) {
@@ -31,17 +31,30 @@ export default function MainLayout({ children }) {
           {/* Desktop Navigation Links */}
           <nav className="hidden md:flex items-center gap-2">
             {user.role.toLowerCase() === 'admin' ? (
-              <NavLink
-                to="/admin"
-                className={({ isActive }) =>
-                  `px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition ${
-                    isActive ? 'bg-[#FF7A00] text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'
-                  }`
-                }
-              >
-                <LayoutDashboard size={16} />
-                <span>Overview</span>
-              </NavLink>
+              <>
+                <NavLink
+                  to="/admin"
+                  className={({ isActive }) =>
+                    `px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition ${
+                      isActive ? 'bg-[#FF7A00] text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                    }`
+                  }
+                >
+                  <LayoutDashboard size={16} />
+                  <span>Overview</span>
+                </NavLink>
+                <NavLink
+                  to="/admin/settings"
+                  className={({ isActive }) =>
+                    `px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition ${
+                      isActive ? 'bg-[#FF7A00] text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                    }`
+                  }
+                >
+                  <Settings size={16} />
+                  <span>Settings</span>
+                </NavLink>
+              </>
             ) : (
               <NavLink
                 to="/employee"
@@ -99,6 +112,17 @@ export default function MainLayout({ children }) {
           >
             <LayoutDashboard size={18} />
             <span className="mt-1">Overview</span>
+          </NavLink>
+          <NavLink
+            to="/admin/settings"
+            className={({ isActive }) =>
+              `flex flex-col items-center text-[10px] font-medium transition ${
+                isActive ? 'text-[#FF7A00]' : 'text-gray-400'
+              }`
+            }
+          >
+            <Settings size={18} />
+            <span className="mt-1">Settings</span>
           </NavLink>
           <button
             onClick={handleLogout}

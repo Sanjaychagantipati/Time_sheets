@@ -187,11 +187,31 @@ export default function EmployeeDashboard() {
     }
   }, [user]);
 
+  const [settings, setSettings] = useState(null);
+  const [isWeekend, setIsWeekend] = useState(false);
+
+  const fetchSettings = useCallback(async () => {
+    try {
+      const res = await api.get('/settings');
+      setSettings(res.data);
+      if (res.data) {
+        const dayOfWeek = new Intl.DateTimeFormat('en-US', {
+          weekday: 'long',
+        }).format(new Date());
+        const weekendDays = res.data.weekend_configuration ? res.data.weekend_configuration.split(',') : [];
+        setIsWeekend(weekendDays.includes(dayOfWeek));
+      }
+    } catch (e) {
+      console.error("Error fetching settings", e);
+    }
+  }, []);
+
   const refreshData = useCallback(async () => {
+    await fetchSettings();
     await checkHoliday();
     await checkStatus();
     await fetchLogs();
-  }, [checkHoliday, checkStatus, fetchLogs]);
+  }, [fetchSettings, checkHoliday, checkStatus, fetchLogs]);
 
   useEffect(() => {
     refreshData();
@@ -286,6 +306,19 @@ export default function EmployeeDashboard() {
         </div>
       )}
 
+      {/* Weekend Alert Banner */}
+      {isWeekend && (
+        <div className="bg-orange-500/10 border border-[#FF7A00]/30 text-[#FF7A00] px-5 py-4 rounded-xl flex flex-col gap-1 text-sm animate-fade-in">
+          <div className="font-extrabold uppercase tracking-wider flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#FF7A00] animate-pulse shadow-[0_0_8px_#FF7A00]" />
+            <span>Today is a Weekend Day</span>
+          </div>
+          <p className="text-gray-300 text-xs font-semibold">
+            Attendance logging features are disabled on weekends according to company settings.
+          </p>
+        </div>
+      )}
+
       {/* Exception Reminder Banner */}
       {employeeExceptions.length > 0 && (
         <div className="bg-red-500/10 border border-red-500/30 text-red-200 px-5 py-4 rounded-xl flex flex-col gap-1.5 text-sm animate-fade-in">
@@ -329,7 +362,14 @@ export default function EmployeeDashboard() {
 
           {/* Clock Button Card */}
           <div className="w-full">
-            <ClockCard onShiftLogged={refreshData} setToast={setToast} isHoliday={!!todayHolidayName} holidayName={todayHolidayName} />
+            <ClockCard 
+              onShiftLogged={refreshData} 
+              setToast={setToast} 
+              isHoliday={!!todayHolidayName} 
+              holidayName={todayHolidayName} 
+              isWeekend={isWeekend}
+              settings={settings}
+            />
           </div>
         </div>
 

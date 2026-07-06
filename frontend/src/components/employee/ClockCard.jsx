@@ -3,7 +3,14 @@ import { Play, Square, AlertTriangle } from 'lucide-react';
 import { timesheetService } from '../../services/timesheetService';
 import { useAuth } from '../../context/AuthContext';
 
-export default function ClockCard({ onShiftLogged, setToast, isHoliday = false, holidayName = '' }) {
+export default function ClockCard({ 
+  onShiftLogged, 
+  setToast, 
+  isHoliday = false, 
+  holidayName = '', 
+  isWeekend = false, 
+  settings = null 
+}) {
   const { user } = useAuth();
   const [isClockedIn, setIsClockedIn] = useState(false);
   const [activeLog, setActiveLog] = useState(null);
@@ -22,9 +29,21 @@ export default function ClockCard({ onShiftLogged, setToast, isHoliday = false, 
     return () => clearInterval(timer);
   }, []);
 
-  const currentHour = now.getHours();
-  const currentMinute = now.getMinutes();
-  const isAfterRecoveryWindow = isClockedIn && (currentHour > 20 || (currentHour === 20 && currentMinute >= 30));
+  const getRecoveryWindowCheck = () => {
+    if (!isClockedIn) return false;
+    if (!settings || !settings.attendance_recovery_enabled) return false;
+
+    const [endHour, endMin] = settings.office_end_time.split(':').map(Number);
+    const recoveryStartMin = endHour * 60 + endMin + 120; // 2 hours after office end time
+
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    const currentMin = currentHour * 60 + currentMinute;
+
+    return currentMin >= recoveryStartMin;
+  };
+
+  const isAfterRecoveryWindow = getRecoveryWindowCheck();
 
   const checkStatus = useCallback(async () => {
     if (!user) return;
@@ -221,7 +240,14 @@ export default function ClockCard({ onShiftLogged, setToast, isHoliday = false, 
       
       <div className="relative z-10 mb-4">
         <div className="text-5xl font-extrabold tracking-tight text-[#FF7A00] font-mono">{timeStr}</div>
-        <div className="text-sm text-[#B3B3B3] font-medium mt-2">{dateStr}</div>
+        <div className="text-sm text-[#B3B3B3] font-medium mt-2">
+          {dateStr}
+          {settings && (
+            <span className="block text-[11px] text-[#FF7A00] font-bold mt-1.5 uppercase tracking-wider">
+              Shift: {settings.office_start_time} - {settings.office_end_time}
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-black/40 border border-[#2A2A2A] mb-8 relative z-10">
@@ -307,9 +333,9 @@ export default function ClockCard({ onShiftLogged, setToast, isHoliday = false, 
 
             <button
               onClick={isClockedIn ? () => setShowConfirm(true) : handleClockIn}
-              disabled={submitting || isHoliday}
+              disabled={submitting || isHoliday || isWeekend}
               className={`w-full py-4 text-base font-bold rounded-xl flex items-center justify-center gap-2 transition duration-300 cursor-pointer disabled:cursor-not-allowed ${
-                isHoliday
+                isHoliday || isWeekend
                   ? 'bg-[#1A1A1A] text-gray-500 border border-[#2A2A2A] hover:shadow-none'
                   : isClockedIn
                     ? 'bg-[#2A2A2A] hover:bg-[#333333] text-white border border-[#3A3A3A] hover:shadow-[0_0_15px_rgba(255,122,0,0.1)]'
@@ -322,7 +348,9 @@ export default function ClockCard({ onShiftLogged, setToast, isHoliday = false, 
                   ? (isClockedIn ? 'Clocking Out...' : 'Clocking In...') 
                   : isHoliday
                     ? 'Holiday - Clock In Disabled'
-                    : (isClockedIn ? 'Clock Out' : 'Clock In')}
+                    : isWeekend
+                      ? 'Weekend - Clock In Disabled'
+                      : (isClockedIn ? 'Clock Out' : 'Clock In')}
               </span>
             </button>
           </>

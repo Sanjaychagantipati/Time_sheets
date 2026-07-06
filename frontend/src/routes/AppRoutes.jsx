@@ -7,6 +7,7 @@ import PWAInstallBanner from '../components/common/PWAInstallBanner';
 const LoginPage = lazy(() => import('../pages/LoginPage'));
 const EmployeeDashboard = lazy(() => import('../pages/EmployeeDashboard'));
 const AdminDashboard = lazy(() => import('../pages/AdminDashboard'));
+const CompanySettings = lazy(() => import('../pages/CompanySettings'));
 
 function PageLoader() {
   return (
@@ -42,6 +43,16 @@ export default function AppRoutes() {
               element={
                 <ProtectedRoute role="admin">
                   <AdminDashboard />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Protected Admin Settings Route */}
+            <Route
+              path="/admin/settings"
+              element={
+                <ProtectedRoute role="admin">
+                  <CompanySettings />
                 </ProtectedRoute>
               }
             />

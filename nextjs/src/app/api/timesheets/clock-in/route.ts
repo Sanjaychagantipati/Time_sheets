@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkAuth } from "@/lib/auth";
 import { recalculateTimesheetAggregates, getCurrentISTTime } from "@/lib/attendance";
-
+import { getCompanySettings } from "@/lib/settings";
 
 export async function POST(req: NextRequest) {
   const { user, response } = await checkAuth(req, ["EMPLOYEE", "ADMIN"]);
@@ -10,6 +10,20 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
+    const settings = await getCompanySettings();
+    const dayOfWeek = new Intl.DateTimeFormat("en-US", {
+      timeZone: settings.timezone,
+      weekday: "long",
+    }).format(new Date());
+
+    const weekendDays = settings.weekend_configuration.split(",").map((d) => d.trim());
+    if (weekendDays.includes(dayOfWeek)) {
+      return NextResponse.json(
+        { error: `Today is a weekend (${dayOfWeek}). Clock-in is disabled.` },
+        { status: 403 }
+      );
+    }
+
     const body = await req.json();
     const { browser, operatingSystem, deviceType, screenResolution } = body;
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkAuth } from "@/lib/auth";
 import { calculateAggregates, recalculateTimesheetAggregates } from "@/lib/attendance";
+import { getCompanySettings } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,10 @@ export async function GET(req: NextRequest) {
   if (response) return response;
 
   try {
+    const settings = await getCompanySettings();
+    const [startHour, startMin] = settings.office_start_time.split(":").map(Number);
+    const lateLimitMin = startHour * 60 + startMin + settings.clock_in_grace_period;
+
     const searchParams = req.nextUrl.searchParams;
     const userId = searchParams.get("userId");
     const client = searchParams.get("client");
@@ -92,7 +97,8 @@ export async function GET(req: NextRequest) {
 
       const inHour = clockIn.getUTCHours();
       const inMinute = clockIn.getUTCMinutes();
-      const isLate = inHour > 10 || (inHour === 10 && inMinute > 0);
+      const inTotalMin = inHour * 60 + inMinute;
+      const isLate = inTotalMin > lateLimitMin;
 
       let calculatedStatus = hasActiveSession ? "ACTIVE" : "COMPLETED";
       if (isLate) {

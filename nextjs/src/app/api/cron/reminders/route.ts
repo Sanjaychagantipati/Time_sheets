@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentISTTime } from "@/lib/attendance";
+import { getCompanySettings } from "@/lib/settings";
 import webpush from "web-push";
 
 export const dynamic = "force-dynamic";
@@ -30,16 +31,40 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    const settings = await getCompanySettings();
     const { eventDate, hour, minute } = getCurrentISTTime();
+
+    // Check if today is a weekend day according to settings
+    const dayOfWeek = new Intl.DateTimeFormat("en-US", {
+      timeZone: settings.timezone,
+      weekday: "long",
+    }).format(new Date());
+
+    const weekendDays = settings.weekend_configuration.split(",").map((d) => d.trim());
+    if (!isTest && weekendDays.includes(dayOfWeek)) {
+      return NextResponse.json({
+        message: `Today is a weekend (${dayOfWeek}). Reminders are skipped.`,
+        serverTimeIST: `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`
+      });
+    }
+
+    const [startH, startM] = settings.office_start_time.split(":").map(Number);
+    const [endH, endM] = settings.office_end_time.split(":").map(Number);
+
+    const r1Time = startH * 60 + startM - settings.clock_in_reminder_offset;
+    const r2Time = endH * 60 + endM + settings.clock_out_reminder_offset;
+    const r3Time = endH * 60 + endM + 120; // 2 hours after office end time
+
+    const currentMin = hour * 60 + minute;
 
     // Determine if we are in a matching reminder slot window (5-minute slot triggers)
     let activeReminder: "1" | "2" | "3" | null = null;
 
-    if (forceReminder === "1" || (!forceReminder && hour === 9 && minute >= 25 && minute < 30)) {
+    if (forceReminder === "1" || (!forceReminder && currentMin >= r1Time && currentMin < r1Time + 5)) {
       activeReminder = "1";
-    } else if (forceReminder === "2" || (!forceReminder && hour === 18 && minute >= 40 && minute < 45)) {
+    } else if (forceReminder === "2" || (!forceReminder && currentMin >= r2Time && currentMin < r2Time + 5)) {
       activeReminder = "2";
-    } else if (forceReminder === "3" || (!forceReminder && hour === 20 && minute >= 30 && minute < 35)) {
+    } else if (forceReminder === "3" || (!forceReminder && currentMin >= r3Time && currentMin < r3Time + 5)) {
       activeReminder = "3";
     }
 
@@ -55,9 +80,11 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Fetch all candidates
+    // Fetch all candidates and employees
     const candidates = await prisma.users.findMany({
-      where: { role: "CANDIDATE" }
+      where: {
+        role: { in: ["EMPLOYEE", "CANDIDATE"] }
+      }
     });
 
     let sentCount = 0;

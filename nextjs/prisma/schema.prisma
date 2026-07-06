@@ -84,3 +84,18 @@ model push_subscriptions {
   created_at DateTime @default(now()) @db.Timestamp(6)
   users      users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
+
+model company_settings {
+  id                         String   @id @db.VarChar(36)
+  office_start_time          String   @db.VarChar(5)
+  office_end_time            String   @db.VarChar(5)
+  clock_in_grace_period      Int      @default(30)
+  clock_out_grace_period     Int      @default(0)
+  clock_in_reminder_offset   Int      @default(5)
+  clock_out_reminder_offset  Int      @default(10)
+  attendance_recovery_enabled Boolean  @default(true)
+  recovery_deadline          String   @default("23:59")
+  weekend_configuration      String   @default("Saturday,Sunday")
+  timezone                   String   @default("Asia/Kolkata")
+  updated_at                 DateTime @default(now()) @db.Timestamp(6)
+}
