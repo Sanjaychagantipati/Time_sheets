@@ -384,7 +384,7 @@ export default function AdminAttendance() {
                             {log.clockOut ? `${log.hours.toFixed(2)} hrs` : 'In Progress'}
                           </td>
                           <td className="px-6 py-3.5">
-                            <span className={`px-2 py-0.5 text-[9px] font-extrabold rounded-lg border uppercase tracking-wider ${
+                            <span className={`px-2 py-0.5 text-[9px] font-extrabold rounded-lg border uppercase tracking-wider whitespace-nowrap inline-block ${
                               log.status === 'ACTIVE' 
                                 ? 'bg-green-500/10 text-green-400 border-green-500/20' 
                                 : log.status === 'LATE_CLOCK_IN'
