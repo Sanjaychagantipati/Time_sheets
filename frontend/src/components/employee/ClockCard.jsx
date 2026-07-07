@@ -195,13 +195,16 @@ export default function ClockCard({
       return;
     }
 
+    // Parse recovery time and build Date relative to attendance date
+    const [year, month, day] = activeLog.date.split('-').map(Number);
+    const [outH, outM, outS = 0] = recoveryTime.split(':').map(Number);
+    const recoveryDateTime = new Date(year, month - 1, day, outH, outM, outS);
+
     // Validation: must be after Clock In
     if (activeLog && activeLog.clockIn) {
       const [inH, inM, inS = 0] = activeLog.clockIn.split(':').map(Number);
-      const [outH, outM, outS = 0] = recoveryTime.split(':').map(Number);
-      const inMin = inH * 60 + inM + inS / 60;
-      const outMin = outH * 60 + outM + outS / 60;
-      if (outMin <= inMin) {
+      const clockInDateTime = new Date(year, month - 1, day, inH, inM, inS);
+      if (recoveryDateTime.getTime() <= clockInDateTime.getTime()) {
         setToast({ message: 'Clock Out time must be later than Clock In time.', type: 'error' });
         return;
       }
@@ -209,10 +212,7 @@ export default function ClockCard({
 
     // Validation: cannot be in the future relative to local browser time
     const nowLocal = new Date();
-    const [outH, outM, outS = 0] = recoveryTime.split(':').map(Number);
-    const selectedDateTime = new Date();
-    selectedDateTime.setHours(outH, outM, outS, 0);
-    if (selectedDateTime.getTime() > nowLocal.getTime()) {
+    if (recoveryDateTime.getTime() > nowLocal.getTime()) {
       setToast({ message: 'Actual Clock Out Time cannot be in the future.', type: 'error' });
       return;
     }
