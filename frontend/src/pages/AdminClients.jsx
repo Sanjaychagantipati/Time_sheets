@@ -35,25 +35,26 @@ export default function AdminClients() {
 
     setSubmitting(true);
     try {
-      addCompany(trimmed);
+      await addCompany(trimmed);
       setToast({ message: `Client company "${trimmed}" added successfully.`, type: 'success' });
       setCompanyName('');
     } catch (err) {
       console.error(err);
-      setToast({ message: err.message || 'Failed to add client company.', type: 'error' });
+      const errMsg = err.response?.data?.error || err.message || 'Failed to add client company.';
+      setToast({ message: errMsg, type: 'error' });
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleDeleteClick = (c) => {
+  const handleDeleteClick = async (c) => {
     const isAssigned = employees.some(
       (emp) => emp.clientCompany && emp.clientCompany.toLowerCase() === c.toLowerCase()
     );
 
     if (isAssigned) {
       setToast({
-        message: 'This company is assigned to existing employees. Reassign employees before deleting.',
+        message: `Cannot delete "${c}". There are candidates assigned to this company.`,
         type: 'error'
       });
       return;
@@ -61,10 +62,12 @@ export default function AdminClients() {
 
     if (confirm('Are you sure you want to delete this client company?')) {
       try {
-        deleteCompany(c);
+        await deleteCompany(c);
         setToast({ message: `Client company "${c}" deleted successfully.`, type: 'success' });
       } catch (err) {
-        setToast({ message: err.message || 'Failed to delete client company.', type: 'error' });
+        console.error(err);
+        const errMsg = err.response?.data?.error || err.message || 'Failed to delete client company.';
+        setToast({ message: errMsg, type: 'error' });
       }
     }
   };

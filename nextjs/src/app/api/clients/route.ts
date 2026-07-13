@@ -96,6 +96,11 @@ export async function DELETE(req: NextRequest) {
 
     return NextResponse.json({ message: "Client deleted successfully" });
   } catch (error: any) {
+    if (error.code === "P2003") {
+      return NextResponse.json({
+        error: "Cannot delete client company because there are candidates or timesheets associated with it."
+      }, { status: 400 });
+    }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
