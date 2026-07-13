@@ -32,8 +32,16 @@ export default function ClockCard({
   }, []);
 
   const getRecoveryWindowCheck = () => {
-    if (!isClockedIn) return false;
-    if (!settings || !settings.attendance_recovery_enabled) return false;
+    if (!isClockedIn || !activeLog) return false;
+    if (!settings) return false;
+
+    // If the active shift belongs to a past date, they MUST recover it
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (activeLog.date < todayStr) {
+      return settings.attendance_recovery_enabled; // Only if recovery is enabled
+    }
+
+    if (!settings.attendance_recovery_enabled) return false;
 
     const [endHour, endMin] = settings.office_end_time.split(':').map(Number);
     const recoveryStartMin = endHour * 60 + endMin + 120; // 2 hours after office end time

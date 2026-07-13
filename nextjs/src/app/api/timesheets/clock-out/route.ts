@@ -34,6 +34,16 @@ export async function POST(req: NextRequest) {
     // Use absolute current server time projected into Asia/Kolkata timezone
     const { eventDate, eventTime: serverClockOutTime, hour, minute, second } = getCurrentISTTime();
 
+    const serverDateStr = eventDate.toISOString().split("T")[0];
+    const timesheetDateStr = timesheet.date.toISOString().split("T")[0];
+
+    // Enforce recovery clock-out for past-date active shifts
+    if (!recoveryClockOut && timesheetDateStr !== serverDateStr) {
+      return NextResponse.json({
+        error: "Your active shift is from a past date. Please use Attendance Recovery to clock out."
+      }, { status: 400 });
+    }
+
     let clockOutTime = serverClockOutTime;
     let hourVal = hour;
     let minuteVal = minute;
@@ -45,30 +55,33 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Attendance recovery is currently disabled" }, { status: 400 });
       }
 
-      // 1. Validate that current server time is after office end time + 2 hours (120 min)
-      const [endHour, endMin] = settings.office_end_time.split(":").map(Number);
-      const recoveryStartMin = endHour * 60 + endMin + 120;
-      const currentMin = hour * 60 + minute;
+      const isPastShift = timesheetDateStr < serverDateStr;
 
-      if (currentMin < recoveryStartMin) {
-        const startH = Math.floor(recoveryStartMin / 60) % 24;
-        const startM = recoveryStartMin % 60;
-        const formattedStart = `${String(startH).padStart(2, "0")}:${String(startM).padStart(2, "0")}`;
-        return NextResponse.json({ error: `Attendance recovery is only available after ${formattedStart}` }, { status: 400 });
+      // Enforce recovery start and deadline only for today's recovery
+      if (!isPastShift) {
+        // 1. Validate that current server time is after office end time + 2 hours (120 min)
+        const [endHour, endMin] = settings.office_end_time.split(":").map(Number);
+        const recoveryStartMin = endHour * 60 + endMin + 120;
+        const currentMin = hour * 60 + minute;
+
+        if (currentMin < recoveryStartMin) {
+          const startH = Math.floor(recoveryStartMin / 60) % 24;
+          const startM = recoveryStartMin % 60;
+          const formattedStart = `${String(startH).padStart(2, "0")}:${String(startM).padStart(2, "0")}`;
+          return NextResponse.json({ error: `Attendance recovery is only available after ${formattedStart}` }, { status: 400 });
+        }
+
+        // Validate recovery deadline (e.g. 23:59)
+        const [deadlineHour, deadlineMin] = settings.recovery_deadline.split(":").map(Number);
+        const deadlineTotalMin = deadlineHour * 60 + deadlineMin;
+        if (currentMin > deadlineTotalMin) {
+          return NextResponse.json({ error: `Attendance recovery deadline (${settings.recovery_deadline}) has passed` }, { status: 400 });
+        }
       }
 
-      // Validate recovery deadline (e.g. 23:59)
-      const [deadlineHour, deadlineMin] = settings.recovery_deadline.split(":").map(Number);
-      const deadlineTotalMin = deadlineHour * 60 + deadlineMin;
-      if (currentMin > deadlineTotalMin) {
-        return NextResponse.json({ error: `Attendance recovery deadline (${settings.recovery_deadline}) has passed` }, { status: 400 });
-      }
-
-      // 2. Validate that timesheet date is today
-      const serverDateStr = eventDate.toISOString().split("T")[0];
-      const timesheetDateStr = timesheet.date.toISOString().split("T")[0];
-      if (timesheetDateStr !== serverDateStr) {
-        return NextResponse.json({ error: "You can only recover today's attendance" }, { status: 400 });
+      // 2. Validate that timesheet date is not in the future
+      if (timesheetDateStr > serverDateStr) {
+        return NextResponse.json({ error: "Cannot recover future attendance" }, { status: 400 });
       }
 
       // 3. Parse recoveryClockOut
@@ -83,8 +96,8 @@ export async function POST(req: NextRequest) {
 
       clockOutTime = new Date(Date.UTC(1970, 0, 1, hourVal, minuteVal, secondVal, 0));
 
-      // 4. Validate that recovery time is not in the future
-      const testEnd = new Date(eventDate);
+      // 4. Validate that recovery time is not in the future relative to now
+      const testEnd = new Date(timesheet.date);
       testEnd.setUTCHours(hourVal, minuteVal, secondVal, 0);
       if (testEnd.getTime() > Date.now()) {
         return NextResponse.json({ error: "Actual Clock Out Time cannot be in the future" }, { status: 400 });
