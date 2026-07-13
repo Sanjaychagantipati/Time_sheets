@@ -819,7 +819,7 @@ export const timesheetService = {
   createEmployee: async (employeeData) => {
     if (isMockMode()) {
       const users = getUsers();
-      const userExists = users.find((u) => u.username === employeeData.username);
+      const userExists = users.find((u) => u.username.toLowerCase() === employeeData.username.toLowerCase());
       if (userExists) {
         throw new Error('Username already taken');
       }

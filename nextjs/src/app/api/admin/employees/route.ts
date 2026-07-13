@@ -48,14 +48,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    const existing = await prisma.users.findUnique({
-      where: { username },
+    const existing = await prisma.users.findFirst({
+      where: {
+        username: {
+          equals: username,
+          mode: "insensitive",
+        },
+      },
     });
     if (existing) {
       return NextResponse.json({ error: "Username already exists" }, { status: 400 });
     }
 
-    const hashedPassword = bcryptjs.hashSync(password, 10);
+    const hashedPassword = bcryptjs.hashSync(password.toLowerCase(), 10);
     const userId = crypto.randomUUID();
 
     let finalClientId: number | null = null;

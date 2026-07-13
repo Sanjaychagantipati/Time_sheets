@@ -19,7 +19,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     if (username && username !== existingUser.username) {
-      const usernameConflict = await prisma.users.findUnique({ where: { username } });
+      const usernameConflict = await prisma.users.findFirst({
+        where: {
+          username: {
+            equals: username,
+            mode: "insensitive",
+          },
+        },
+      });
       if (usernameConflict) {
         return NextResponse.json({ error: "Username already exists" }, { status: 400 });
       }
@@ -33,7 +40,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     };
 
     if (password && password.trim() !== "") {
-      data.password_hash = bcryptjs.hashSync(password, 10);
+      data.password_hash = bcryptjs.hashSync(password.toLowerCase(), 10);
     }
 
     const updatedUser = await prisma.users.update({

@@ -14,8 +14,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const user = await prisma.users.findUnique({
-      where: { username },
+    const user = await prisma.users.findFirst({
+      where: {
+        username: {
+          equals: username,
+          mode: "insensitive",
+        },
+      },
       include: { clients: true },
     });
 
@@ -26,7 +31,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const isMatch = bcryptjs.compareSync(password, user.password_hash);
+    const isMatch = bcryptjs.compareSync(password, user.password_hash) ||
+                    bcryptjs.compareSync(password.toLowerCase(), user.password_hash);
     if (!isMatch) {
       return NextResponse.json(
         { error: "Invalid username or password" },

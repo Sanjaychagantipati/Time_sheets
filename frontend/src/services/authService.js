@@ -14,7 +14,7 @@ export const authService = {
       
       const users = getStoredUsers();
       const user = users.find(
-        (u) => u.username.toLowerCase() === trimmedUsername && u.password === password
+        (u) => u.username.toLowerCase() === trimmedUsername && u.password.toLowerCase() === password.toLowerCase()
       );
 
       if (user) {
