@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
   try {
     const settings = await getCompanySettings();
     const body = await req.json();
-    const { notes, browser, operatingSystem, deviceType, screenResolution, recoveryClockOut } = body;
+    const { notes, browser, operatingSystem, deviceType, screenResolution, recoveryClockOut, recoveryClockOutDate } = body;
 
     const timesheet = await prisma.timesheets.findFirst({
       where: {
@@ -122,7 +122,7 @@ export async function POST(req: NextRequest) {
       0
     );
 
-    const endLdt = new Date(eventDate);
+    const endLdt = new Date(recoveryClockOutDate || eventDate);
     endLdt.setUTCHours(hourVal, minuteVal, secondVal, 0);
 
     const minutes = Math.floor((endLdt.getTime() - startLdt.getTime()) / 60000);

@@ -338,15 +338,15 @@ export const timesheetService = {
         }
 
         const activeSess = log.sessions[activeSessIdx];
-        activeSess.clockOut = timeStr;
+        activeSess.clockOut = recoveryClockOut || timeStr;
 
         const inTime = new Date(`${log.date}T${activeSess.clockIn}`);
-        const outTime = new Date(`${todayStr}T${timeStr}`);
+        const outTime = new Date(`${recoveryClockOutDate || todayStr}T${recoveryClockOut || timeStr}`);
         let diffHours = (outTime - inTime) / 3600000;
         if (diffHours < 0) diffHours = 0;
         activeSess.hours = parseFloat(diffHours.toFixed(2));
 
-        log.clockOut = timeStr;
+        log.clockOut = recoveryClockOut || timeStr;
         log.status = 'COMPLETED';
         log.browser = metadata.browser;
         log.operatingSystem = metadata.operatingSystem;
@@ -377,7 +377,8 @@ export const timesheetService = {
         deviceType: metadata.deviceType,
         screenResolution: metadata.screenResolution,
         timezoneOffset: new Date().getTimezoneOffset(),
-        recoveryClockOut: recoveryClockOut || undefined
+        recoveryClockOut: recoveryClockOut || undefined,
+        recoveryClockOutDate: recoveryClockOutDate || undefined
       });
       localStorage.removeItem('vt_active_shift');
       triggerSync();

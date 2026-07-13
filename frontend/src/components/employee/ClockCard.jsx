@@ -20,10 +20,20 @@ export default function ClockCard({
   const [dateStr, setDateStr] = useState('');
   const [notes, setNotes] = useState('');
   const [recoveryTime, setRecoveryTime] = useState('');
+  const [recoveryDate, setRecoveryDate] = useState('');
+  const [recoveryHour, setRecoveryHour] = useState('06');
+  const [recoveryMinute, setRecoveryMinute] = useState('30');
+  const [recoveryPeriod, setRecoveryPeriod] = useState('PM');
   const [submitting, setSubmitting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    if (activeLog && activeLog.date) {
+      setRecoveryDate(activeLog.date);
+    }
+  }, [activeLog]);
 
   // Update now time every 10 seconds for recovery check
   useEffect(() => {
@@ -198,20 +208,30 @@ export default function ClockCard({
   };
 
   const handleRecoverySave = async () => {
-    if (!recoveryTime) {
-      setToast({ message: 'Please select your actual clock-out time.', type: 'error' });
+    let hour = parseInt(recoveryHour);
+    if (recoveryPeriod === 'PM' && hour !== 12) {
+      hour += 12;
+    } else if (recoveryPeriod === 'AM' && hour === 12) {
+      hour = 0;
+    }
+    const hourStr = String(hour).padStart(2, '0');
+    const minuteStr = String(recoveryMinute).padStart(2, '0');
+    const formattedRecoveryTime = `${hourStr}:${minuteStr}:00`;
+
+    if (!recoveryDate) {
+      setToast({ message: 'Please select your actual clock-out date.', type: 'error' });
       return;
     }
 
-    // Parse recovery time and build Date relative to attendance date
-    const [year, month, day] = activeLog.date.split('-').map(Number);
-    const [outH, outM, outS = 0] = recoveryTime.split(':').map(Number);
-    const recoveryDateTime = new Date(year, month - 1, day, outH, outM, outS);
+    // Build Date objects relative to selected recovery date
+    const [year, month, day] = recoveryDate.split('-').map(Number);
+    const recoveryDateTime = new Date(year, month - 1, day, hour, parseInt(recoveryMinute), 0);
 
     // Validation: must be after Clock In
     if (activeLog && activeLog.clockIn) {
+      const [inYear, inMonth, inDay] = activeLog.date.split('-').map(Number);
       const [inH, inM, inS = 0] = activeLog.clockIn.split(':').map(Number);
-      const clockInDateTime = new Date(year, month - 1, day, inH, inM, inS);
+      const clockInDateTime = new Date(inYear, inMonth - 1, inDay, inH, inM, inS);
       if (recoveryDateTime.getTime() <= clockInDateTime.getTime()) {
         setToast({ message: 'Clock Out time must be later than Clock In time.', type: 'error' });
         return;
@@ -227,9 +247,8 @@ export default function ClockCard({
 
     try {
       setSubmitting(true);
-      const res = await timesheetService.clockOut(activeLog.id, notes, recoveryTime);
+      const res = await timesheetService.clockOut(activeLog.id, notes, formattedRecoveryTime, recoveryDate);
       setNotes('');
-      setRecoveryTime('');
       setToast({ message: `Attendance recovered successfully! Hours Logged: ${res.log.hours}h`, type: 'success' });
       await checkStatus();
       if (onShiftLogged) onShiftLogged();
@@ -284,18 +303,54 @@ export default function ClockCard({
             </p>
             
             <div className="flex flex-col gap-1.5 mt-2">
-              <label htmlFor="recovery-time" className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                Actual Clock Out Time
+              <label htmlFor="recovery-date" className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                Actual Clock Out Date
               </label>
               <input
-                id="recovery-time"
-                type="time"
-                step="1"
+                id="recovery-date"
+                type="date"
                 required
-                value={recoveryTime}
-                onChange={(e) => setRecoveryTime(e.target.value)}
-                className="bg-[#1A1A1A] border border-[#2A2A2A] text-white rounded-xl px-4 h-11 text-sm focus:outline-none focus:border-[#FF7A00] focus:ring-1 focus:ring-[#FF7A00] transition"
+                value={recoveryDate}
+                onChange={(e) => setRecoveryDate(e.target.value)}
+                className="bg-[#1A1A1A] border border-[#2A2A2A] text-white rounded-xl px-4 h-11 text-sm focus:outline-none focus:border-[#FF7A00] focus:ring-1 focus:ring-[#FF7A00] transition cursor-pointer"
               />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                Actual Clock Out Time
+              </label>
+              <div className="grid grid-cols-3 gap-3">
+                <select
+                  aria-label="Clock Out Hour"
+                  value={recoveryHour}
+                  onChange={(e) => setRecoveryHour(e.target.value)}
+                  className="bg-[#1A1A1A] border border-[#2A2A2A] text-white rounded-xl px-3 h-11 text-sm focus:outline-none focus:border-[#FF7A00] transition cursor-pointer"
+                >
+                  {Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0')).map(h => (
+                    <option key={h} value={h}>{h}</option>
+                  ))}
+                </select>
+                <select
+                  aria-label="Clock Out Minute"
+                  value={recoveryMinute}
+                  onChange={(e) => setRecoveryMinute(e.target.value)}
+                  className="bg-[#1A1A1A] border border-[#2A2A2A] text-white rounded-xl px-3 h-11 text-sm focus:outline-none focus:border-[#FF7A00] transition cursor-pointer"
+                >
+                  {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map(m => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+                <select
+                  aria-label="Clock Out Period"
+                  value={recoveryPeriod}
+                  onChange={(e) => setRecoveryPeriod(e.target.value)}
+                  className="bg-[#1A1A1A] border border-[#2A2A2A] text-white rounded-xl px-3 h-11 text-sm focus:outline-none focus:border-[#FF7A00] transition cursor-pointer"
+                >
+                  <option value="AM">AM</option>
+                  <option value="PM">PM</option>
+                </select>
+              </div>
             </div>
 
             <div className="flex flex-col gap-1.5">
