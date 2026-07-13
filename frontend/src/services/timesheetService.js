@@ -269,7 +269,7 @@ export const timesheetService = {
     }
   },
 
-  clockOut: async (activeClockId, notes, recoveryClockOut) => {
+  clockOut: async (activeClockId, notes, recoveryClockOut, recoveryClockOutDate) => {
     const metadata = getDeviceMetadata();
 
     // If offline, queue request
