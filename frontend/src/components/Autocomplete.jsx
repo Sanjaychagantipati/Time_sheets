@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { ChevronDown, X } from 'lucide-react';
+import { Search, ChevronDown, X } from 'lucide-react';
 
 export default function Autocomplete({
   items = [], // Array of { value, label, subtext }
@@ -8,36 +8,47 @@ export default function Autocomplete({
   placeholder = 'Type to search...',
   disabled = false,
   id = 'autocomplete-dropdown',
-  heightClass = 'h-14'
+  heightClass = 'h-14',
+  searchInside = false, // If true, behaves like SearchableDropdown (input inside dropdown)
+  direction = 'down' // dropdown opening direction: 'down' or 'up'
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
+  const [searchQuery, setSearchQuery] = useState(''); // Used when searchInside is true
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const wrapperRef = useRef(null);
   const listRef = useRef(null);
 
-  // Synchronize input value with selectedValue changes
+  // Synchronize input/search value with selectedValue changes
+  const selectedItem = useMemo(() => {
+    return items.find(item => item.value === selectedValue);
+  }, [items, selectedValue]);
+
   useEffect(() => {
-    const selectedItem = items.find(item => item.value === selectedValue);
     if (selectedItem) {
       setInputValue(selectedItem.label);
     } else if (!selectedValue) {
       setInputValue('');
     }
-  }, [selectedValue, items]);
+  }, [selectedValue, selectedItem]);
 
   // Filter items based on search query
   const filteredItems = useMemo(() => {
-    if (!inputValue) return items;
-    // Check if the current inputValue is exactly matching the selected value
-    const selectedItem = items.find(item => item.value === selectedValue);
-    if (selectedItem && selectedItem.label === inputValue) {
-      return items;
+    if (searchInside) {
+      if (!searchQuery) return items;
+      return items.filter(item =>
+        item.label.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    } else {
+      if (!inputValue) return items;
+      if (selectedItem && selectedItem.label === inputValue) {
+        return items;
+      }
+      return items.filter(item =>
+        item.label.toLowerCase().includes(inputValue.toLowerCase())
+      );
     }
-    return items.filter(item =>
-      item.label.toLowerCase().includes(inputValue.toLowerCase())
-    );
-  }, [items, inputValue, selectedValue]);
+  }, [items, inputValue, searchQuery, selectedItem, searchInside]);
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -53,7 +64,7 @@ export default function Autocomplete({
   // Reset highlight index when filtering
   useEffect(() => {
     setHighlightedIndex(-1);
-  }, [inputValue]);
+  }, [inputValue, searchQuery]);
 
   // Adjust scroll position for keyboard navigation
   useEffect(() => {
@@ -111,8 +122,11 @@ export default function Autocomplete({
   };
 
   const handleItemSelect = (item) => {
-    setInputValue(item.label);
+    if (!searchInside) {
+      setInputValue(item.label);
+    }
     onSelect(item.value, item);
+    setSearchQuery('');
     setIsOpen(false);
   };
 
@@ -120,7 +134,6 @@ export default function Autocomplete({
     const val = e.target.value;
     setInputValue(val);
     setIsOpen(true);
-    // Try to auto-resolve matching item
     const matchingItem = items.find(item => item.label.toLowerCase() === val.toLowerCase());
     if (matchingItem) {
       onSelect(matchingItem.value, matchingItem);
@@ -132,52 +145,116 @@ export default function Autocomplete({
   const handleClear = (e) => {
     e.stopPropagation();
     setInputValue('');
+    setSearchQuery('');
     onSelect('', null);
     setIsOpen(true);
   };
 
+  const displayValue = selectedItem ? selectedItem.label : '';
+
   return (
     <div className="relative w-full" ref={wrapperRef}>
-      <div className="relative flex items-center">
-        <input
-          id={id}
-          type="text"
-          value={inputValue}
-          onChange={handleInputChange}
-          onFocus={() => !disabled && setIsOpen(true)}
+      {searchInside ? (
+        /* Behavior 1: Trigger is a select box, search is inside dropdown */
+        <div
+          role="combobox"
+          aria-expanded={isOpen}
+          aria-controls={`${id}-listbox`}
+          aria-haspopup="listbox"
+          onClick={() => !disabled && setIsOpen(!isOpen)}
           onKeyDown={handleKeyDown}
-          placeholder={placeholder}
-          disabled={disabled}
-          autoComplete="off"
-          className={`w-full ${heightClass} bg-[#1A1A1A] border border-[#2A2A2A] text-white rounded-xl pl-4 pr-10 text-sm transition focus:outline-none focus:border-[#FF7A00] focus:ring-1 focus:ring-[#FF7A00] ${
-            disabled ? 'opacity-50 cursor-not-allowed pointer-events-none' : 'cursor-text'
+          tabIndex={disabled ? -1 : 0}
+          className={`w-full ${heightClass} bg-[#1A1A1A] border border-[#2A2A2A] text-white rounded-xl px-4 flex items-center justify-between transition select-none focus:outline-none focus:border-[#FF7A00] focus:ring-1 focus:ring-[#FF7A00] ${
+            disabled ? 'opacity-50 cursor-not-allowed pointer-events-none' : 'cursor-pointer'
           }`}
-        />
-        <div className="absolute right-3 flex items-center gap-1.5">
-          {inputValue && !disabled && (
-            <button
-              type="button"
-              onClick={handleClear}
-              className="p-1 text-gray-500 hover:text-white rounded transition hover:bg-white/5 cursor-pointer"
-              aria-label="Clear selection"
-            >
-              <X size={14} />
-            </button>
-          )}
-          <ChevronDown
-            size={16}
-            className={`text-gray-400 transition-transform duration-200 cursor-pointer ${
-              isOpen ? 'rotate-180 text-[#FF7A00]' : ''
-            }`}
-            onClick={() => !disabled && setIsOpen(!isOpen)}
-          />
+        >
+          <div className="flex-1 truncate mr-2">
+            {displayValue ? (
+              <span className="text-white font-medium text-sm">{displayValue}</span>
+            ) : (
+              <span className="text-gray-500 text-sm">{placeholder}</span>
+            )}
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {displayValue && !disabled && (
+              <button
+                type="button"
+                onClick={handleClear}
+                className="p-1 text-gray-500 hover:text-white rounded transition hover:bg-white/5 cursor-pointer"
+                aria-label="Clear selection"
+              >
+                <X size={14} />
+              </button>
+            )}
+            <ChevronDown
+              size={16}
+              className={`text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180 text-[#FF7A00]' : ''}`}
+            />
+          </div>
         </div>
-      </div>
+      ) : (
+        /* Behavior 2: Trigger is a text input field (Autocomplete default) */
+        <div className="relative flex items-center">
+          <input
+            id={id}
+            type="text"
+            value={inputValue}
+            onChange={handleInputChange}
+            onFocus={() => !disabled && setIsOpen(true)}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            disabled={disabled}
+            autoComplete="off"
+            className={`w-full ${heightClass} bg-[#1A1A1A] border border-[#2A2A2A] text-white rounded-xl pl-4 pr-10 text-sm transition focus:outline-none focus:border-[#FF7A00] focus:ring-1 focus:ring-[#FF7A00] ${
+              disabled ? 'opacity-50 cursor-not-allowed pointer-events-none' : 'cursor-text'
+            }`}
+          />
+          <div className="absolute right-3 flex items-center gap-1.5">
+            {inputValue && !disabled && (
+              <button
+                type="button"
+                onClick={handleClear}
+                className="p-1 text-gray-500 hover:text-white rounded transition hover:bg-white/5 cursor-pointer"
+                aria-label="Clear selection"
+              >
+                <X size={14} />
+              </button>
+            )}
+            <ChevronDown
+              size={16}
+              className={`text-gray-400 transition-transform duration-200 cursor-pointer ${
+                isOpen ? 'rotate-180 text-[#FF7A00]' : ''
+              }`}
+              onClick={() => !disabled && setIsOpen(!isOpen)}
+            />
+          </div>
+        </div>
+      )}
 
+      {/* Options Dropdown Menu */}
       {isOpen && (
-        <div className="absolute left-0 right-0 z-50 bg-[#121826]/95 border border-[#2A2A2A] rounded-xl shadow-2xl overflow-hidden backdrop-blur-md mt-2">
+        <div className={`absolute left-0 right-0 z-50 bg-[#121826]/95 border border-[#2A2A2A] rounded-xl shadow-2xl overflow-hidden backdrop-blur-md animate-scale-in ${
+          direction === 'up' ? 'bottom-full mb-2' : 'top-full mt-2'
+        }`}>
+          {/* Inner Search Box when searchInside is true */}
+          {searchInside && (
+            <div className="p-2.5 border-b border-white/5 flex items-center gap-2 bg-black/10">
+              <Search size={14} className="text-gray-500 ml-1.5" />
+              <input
+                type="text"
+                autoFocus
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search..."
+                className="flex-1 bg-transparent border-0 text-white text-xs placeholder-gray-500 focus:outline-none focus:ring-0 py-1"
+                onKeyDown={handleKeyDown}
+              />
+            </div>
+          )}
+
           <ul
             ref={listRef}
+            id={`${id}-listbox`}
             role="listbox"
             className="max-h-60 overflow-y-auto divide-y divide-white/[0.02] no-scrollbar"
           >

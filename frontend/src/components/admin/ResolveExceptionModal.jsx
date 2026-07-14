@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { ClipboardCheck, X, AlertTriangle } from 'lucide-react';
 import { timesheetService } from '../../services/timesheetService';
 import { formatDateFriendly, formatTime12h } from '../../utils/formatters';
+import { calculateHours } from '../../utils/dateUtils';
 
 export default function ResolveExceptionModal({ isOpen, exception, onClose, onSuccess, setToast }) {
   const [clockOut, setClockOut] = useState('');
@@ -17,17 +18,7 @@ export default function ResolveExceptionModal({ isOpen, exception, onClose, onSu
 
   if (!isOpen || !exception) return null;
 
-  // Helper to calculate hours dynamically
-  const calculateHours = (inStr, outStr) => {
-    if (!inStr || !outStr) return null;
-    const [inH, inM, inS = 0] = inStr.split(':').map(Number);
-    const [outH, outM, outS = 0] = outStr.split(':').map(Number);
-    const inMin = inH * 60 + inM + inS / 60;
-    const outMin = outH * 60 + outM + outS / 60;
-    const diffMin = outMin - inMin;
-    if (diffMin < 0) return null;
-    return parseFloat((diffMin / 60).toFixed(2));
-  };
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();

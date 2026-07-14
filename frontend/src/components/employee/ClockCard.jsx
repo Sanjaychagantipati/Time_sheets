@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Play, Square, AlertTriangle } from 'lucide-react';
 import { timesheetService } from '../../services/timesheetService';
 import { useAuth } from '../../context/AuthContext';
+import { validateRecoveryTime } from '../../utils/dateUtils';
 
 export default function ClockCard({ 
   onShiftLogged, 
@@ -218,30 +219,9 @@ export default function ClockCard({
     const minuteStr = String(recoveryMinute).padStart(2, '0');
     const formattedRecoveryTime = `${hourStr}:${minuteStr}:00`;
 
-    if (!recoveryDate) {
-      setToast({ message: 'Please select your actual clock-out date.', type: 'error' });
-      return;
-    }
-
-    // Build Date objects relative to selected recovery date
-    const [year, month, day] = recoveryDate.split('-').map(Number);
-    const recoveryDateTime = new Date(year, month - 1, day, hour, parseInt(recoveryMinute), 0);
-
-    // Validation: must be after Clock In
-    if (activeLog && activeLog.clockIn) {
-      const [inYear, inMonth, inDay] = activeLog.date.split('-').map(Number);
-      const [inH, inM, inS = 0] = activeLog.clockIn.split(':').map(Number);
-      const clockInDateTime = new Date(inYear, inMonth - 1, inDay, inH, inM, inS);
-      if (recoveryDateTime.getTime() <= clockInDateTime.getTime()) {
-        setToast({ message: 'Clock Out time must be later than Clock In time.', type: 'error' });
-        return;
-      }
-    }
-
-    // Validation: cannot be in the future relative to local browser time
-    const nowLocal = new Date();
-    if (recoveryDateTime.getTime() > nowLocal.getTime()) {
-      setToast({ message: 'Actual Clock Out Time cannot be in the future.', type: 'error' });
+    const validation = validateRecoveryTime(recoveryDate, hour, parseInt(recoveryMinute), activeLog);
+    if (!validation.isValid) {
+      setToast({ message: validation.error, type: 'error' });
       return;
     }
 

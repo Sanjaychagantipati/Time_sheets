@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { CalendarPlus, Edit3, X } from 'lucide-react';
 import { timesheetService } from '../../services/timesheetService';
 import Autocomplete from '../Autocomplete';
+import { calculateHours, validateTimesheetForm } from '../../utils/dateUtils';
 
 export default function EditLogModal({ isOpen, logId, onClose, onSuccess, setToast }) {
   const [employees, setEmployees] = useState([]);
@@ -14,17 +15,7 @@ export default function EditLogModal({ isOpen, logId, onClose, onSuccess, setToa
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Helper to calculate hours dynamically
-  const calculateHours = (inStr, outStr) => {
-    if (!inStr || !outStr) return null;
-    const [inH, inM, inS = 0] = inStr.split(':').map(Number);
-    const [outH, outM, outS = 0] = outStr.split(':').map(Number);
-    const inMin = inH * 60 + inM + inS / 60;
-    const outMin = outH * 60 + outM + outS / 60;
-    const diffMin = outMin - inMin;
-    if (diffMin < 0) return null;
-    return parseFloat((diffMin / 60).toFixed(2));
-  };
+
 
   // Fetch candidate list on open
   useEffect(() => {
@@ -96,28 +87,10 @@ export default function EditLogModal({ isOpen, logId, onClose, onSuccess, setToa
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!userId) {
-      setToast({ message: 'Candidate selection is required.', type: 'error' });
+    const validation = validateTimesheetForm(userId, clientCompany, clockIn, clockOut);
+    if (!validation.isValid) {
+      setToast({ message: validation.error, type: 'error' });
       return;
-    }
-
-    const trimmedClientCompany = clientCompany.trim();
-    if (!trimmedClientCompany || trimmedClientCompany === 'N/A') {
-      setToast({ message: 'Selected candidate must belong to a valid client company.', type: 'error' });
-      return;
-    }
-
-    if (!clockIn && !clockOut) {
-      setToast({ message: 'At least one of Clock In or Clock Out must be provided.', type: 'error' });
-      return;
-    }
-
-    if (clockIn && clockOut) {
-      const hrs = calculateHours(clockIn, clockOut);
-      if (hrs === null) {
-        setToast({ message: 'Clock-out time cannot be earlier than clock-in time.', type: 'error' });
-        return;
-      }
     }
 
     setSubmitting(true);
