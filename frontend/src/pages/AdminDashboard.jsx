@@ -67,7 +67,7 @@ export default function AdminDashboard() {
     { label: 'Add Client', icon: Briefcase, path: '/admin/clients', color: 'text-sky-400 bg-sky-500/10 border-sky-500/10 hover:border-sky-500/30' },
     { label: 'Manual Attendance', icon: CalendarPlus, path: '/admin/manual-entry', color: 'text-[#FF7A00] bg-orange-500/10 border-orange-500/10 hover:border-orange-500/30' },
     { label: 'Generate Report', icon: FileDown, path: '/admin/reports', color: 'text-purple-400 bg-purple-500/10 border-purple-500/10 hover:border-purple-500/30' },
-    { label: 'Add Leave', icon: Calendar, path: '/admin/leave', color: 'text-pink-400 bg-pink-500/10 border-pink-500/10 hover:border-pink-500/30' }
+    { label: 'Add Leave', icon: Calendar, path: '/admin/leaves', color: 'text-pink-400 bg-pink-500/10 border-pink-500/10 hover:border-pink-500/30' }
   ];
 
   if (loading) {

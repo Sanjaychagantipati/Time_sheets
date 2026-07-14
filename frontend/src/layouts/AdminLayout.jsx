@@ -44,7 +44,7 @@ export default function AdminLayout({ children }) {
     {
       title: 'Leave Management',
       items: [
-        { label: 'Leave Center', path: '/admin/leave', icon: Calendar }
+        { label: 'Leave Center', path: '/admin/leaves', icon: Calendar }
       ]
     },
     {
@@ -120,7 +120,7 @@ export default function AdminLayout({ children }) {
               <div className="flex flex-col gap-0.5">
                 {category.items.map((item, idx) => {
                   const Icon = item.icon;
-                  const isActive = location.pathname === item.path || (item.path === '/admin/dashboard' && location.pathname === '/admin');
+                  const isActive = location.pathname === item.path;
                   return (
                     <NavLink
                       key={idx}
@@ -173,7 +173,7 @@ export default function AdminLayout({ children }) {
           {navCategories.map((category) =>
             category.items.map((item, idx) => {
               const Icon = item.icon;
-              const isActive = location.pathname === item.path || (item.path === '/admin/dashboard' && location.pathname === '/admin');
+              const isActive = location.pathname === item.path;
               return (
                 <NavLink
                   key={idx}
@@ -242,7 +242,7 @@ export default function AdminLayout({ children }) {
                   <div className="flex flex-col gap-0.5">
                     {category.items.map((item, idx) => {
                       const Icon = item.icon;
-                      const isActive = location.pathname === item.path || (item.path === '/admin/dashboard' && location.pathname === '/admin');
+                      const isActive = location.pathname === item.path;
                       return (
                         <NavLink
                           key={idx}
@@ -362,7 +362,7 @@ export default function AdminLayout({ children }) {
                       + Generate Attendance Report
                     </button>
                     <button
-                      onClick={() => handleQuickAction('/admin/leave')}
+                      onClick={() => handleQuickAction('/admin/leaves')}
                       className="px-3 py-2 text-left text-xs font-bold text-gray-300 hover:text-white hover:bg-white/[0.03] rounded-lg transition w-full cursor-pointer"
                     >
                       + Book Employee Leave

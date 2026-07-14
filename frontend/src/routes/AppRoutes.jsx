@@ -48,7 +48,7 @@ export default function AppRoutes() {
             path="/admin"
             element={
               <ProtectedRoute role="admin">
-                <AdminLayout><AdminDashboard /></AdminLayout>
+                <Navigate to="/admin/dashboard" replace />
               </ProtectedRoute>
             }
           />
@@ -106,7 +106,7 @@ export default function AppRoutes() {
             path="/admin/leave"
             element={
               <ProtectedRoute role="admin">
-                <AdminLayout><LeaveManagement /></AdminLayout>
+                <Navigate to="/admin/leaves" replace />
               </ProtectedRoute>
             }
           />
