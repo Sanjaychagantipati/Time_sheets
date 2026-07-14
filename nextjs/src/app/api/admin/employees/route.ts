@@ -15,7 +15,19 @@ export async function GET(req: NextRequest) {
           not: "ADMIN",
         },
       },
-      include: { clients: true },
+      select: {
+        id: true,
+        name: true,
+        username: true,
+        role: true,
+        client_id: true,
+        created_at: true,
+        clients: {
+          select: {
+            name: true,
+          },
+        },
+      },
       orderBy: { name: "asc" },
     });
 

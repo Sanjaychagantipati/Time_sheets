@@ -866,6 +866,17 @@ export const timesheetService = {
     }
   },
 
+  getAdminExceptions: async () => {
+    if (isMockMode()) {
+      const logs = getTimesheets();
+      const todayStr = new Date().toISOString().split('T')[0];
+      return logs.filter((log) => log.clockOut === null && log.date < todayStr);
+    } else {
+      const response = await api.get('/admin/timesheets/exceptions');
+      return response.data;
+    }
+  },
+
   deleteEmployee: async (userId) => {
     if (isMockMode()) {
       const users = getUsers();

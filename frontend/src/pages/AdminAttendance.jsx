@@ -50,26 +50,38 @@ export default function AdminAttendance() {
     if (!isSilent) setLoading(true);
     try {
       const todayStr = new Date().toISOString().split('T')[0];
-      
-      // 1. Fetch today's timesheets for live status widget
-      const todayTimesheets = await timesheetService.getAdminTimesheets({
-        startDate: todayStr,
-        endDate: todayStr
-      });
-      setTodayLogs(todayTimesheets);
 
-      // 2. Fetch history timesheets based on filters
+      // Build history filters
       const filters = {};
       if (filterEmployee !== 'all') filters.userId = filterEmployee;
       if (filterClient !== 'all') filters.clientCompany = filterClient;
       if (filterStartDate) filters.startDate = filterStartDate;
       if (filterEndDate) filters.endDate = filterEndDate;
 
-      const historyTimesheets = await timesheetService.getAdminTimesheets(filters);
-      setLogs(historyTimesheets);
+      const isFiltersEmpty = Object.keys(filters).length === 0;
 
-      // Clean up selected items that are no longer in the list
-      setSelectedTimesheets((prev) => prev.filter((id) => historyTimesheets.some((t) => t.id === id)));
+      if (isFiltersEmpty) {
+        // Single API query fetching history (including today)
+        const historyTimesheets = await timesheetService.getAdminTimesheets({});
+        setLogs(historyTimesheets);
+
+        // Extract today's logs locally
+        const todayTimesheets = historyTimesheets.filter(t => t.date === todayStr);
+        setTodayLogs(todayTimesheets);
+
+        setSelectedTimesheets((prev) => prev.filter((id) => historyTimesheets.some((t) => t.id === id)));
+      } else {
+        // Parallel queries when filters are active
+        const [todayTimesheets, historyTimesheets] = await Promise.all([
+          timesheetService.getAdminTimesheets({ startDate: todayStr, endDate: todayStr }),
+          timesheetService.getAdminTimesheets(filters)
+        ]);
+
+        setTodayLogs(todayTimesheets);
+        setLogs(historyTimesheets);
+
+        setSelectedTimesheets((prev) => prev.filter((id) => historyTimesheets.some((t) => t.id === id)));
+      }
     } catch (err) {
       console.error(err);
       setToast({ message: 'Error retrieving timesheet logs.', type: 'error' });
