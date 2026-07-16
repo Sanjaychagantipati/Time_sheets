@@ -5,6 +5,7 @@ import path from 'path'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  cacheDir: path.resolve(__dirname, 'node_modules/.vite'),
   resolve: {
     dedupe: ['react', 'react-dom'],
     alias: {
