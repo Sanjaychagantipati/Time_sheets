@@ -5,7 +5,7 @@ import { checkAuth } from "@/lib/auth";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
-  const { user, response } = await checkAuth(req, ["EMPLOYEE", "ADMIN", "MANAGER", "CANDIDATE"]);
+  const { user, response } = await checkAuth(req, ["EMPLOYEE", "ADMIN", "MANAGER"]);
   if (response) return response;
 
   try {

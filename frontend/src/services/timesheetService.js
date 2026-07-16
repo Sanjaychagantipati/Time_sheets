@@ -23,7 +23,7 @@ export const saveOfflineQueue = (queue) => {
   }
 };
 
-export const getCandidateCurrency = (userId) => {
+export const getEmployeeCurrency = (userId) => {
   try {
     const stored = localStorage.getItem('vt_user_currencies');
     if (stored) {
@@ -39,13 +39,13 @@ export const getCandidateCurrency = (userId) => {
 };
 
 export const getCurrencySymbol = (userId) => {
-  const currency = getCandidateCurrency(userId);
+  const currency = getEmployeeCurrency(userId);
   if (currency === 'INR') return '₹';
   if (currency === 'EUR') return '€';
   return '$';
 };
 
-export const setCandidateCurrency = (userId, currency) => {
+export const setEmployeeCurrency = (userId, currency) => {
   try {
     const stored = localStorage.getItem('vt_user_currencies') || '{}';
     const parsed = JSON.parse(stored);
@@ -838,7 +838,7 @@ export const timesheetService = {
       saveUsers(users);
 
       if (employeeData.currency) {
-        setCandidateCurrency(newUser.id, employeeData.currency);
+        setEmployeeCurrency(newUser.id, employeeData.currency);
       }
 
       triggerSync();
@@ -849,7 +849,7 @@ export const timesheetService = {
       const response = await api.post('/admin/candidates', employeeData);
       const data = response.data;
       if (employeeData.currency && data && data.id) {
-        setCandidateCurrency(data.id, employeeData.currency);
+        setEmployeeCurrency(data.id, employeeData.currency);
       }
       triggerSync();
       return data;

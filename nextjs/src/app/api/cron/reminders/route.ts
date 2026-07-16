@@ -94,10 +94,10 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Fetch all candidates and employees
-    const candidates = await prisma.users.findMany({
+    // Fetch all active employees
+    const employees = await prisma.users.findMany({
       where: {
-        role: { in: ["EMPLOYEE", "CANDIDATE"] }
+        role: "EMPLOYEE"
       }
     });
 
@@ -105,11 +105,11 @@ export async function GET(req: NextRequest) {
     let failedCount = 0;
     let purgedCount = 0;
 
-    for (const cand of candidates) {
+    for (const emp of employees) {
       // Check if user is on approved leave today
       const leave = await prisma.leaves.findFirst({
         where: {
-          user_id: cand.id,
+          user_id: emp.id,
           start_date: { lte: eventDate },
           end_date: { gte: eventDate },
         },
@@ -118,10 +118,10 @@ export async function GET(req: NextRequest) {
         continue;
       }
 
-      // Find today's timesheet for candidate
+      // Find today's timesheet for employee
       const todayTimesheet = await prisma.timesheets.findFirst({
         where: {
-          user_id: cand.id,
+          user_id: emp.id,
           date: eventDate
         }
       });
@@ -151,7 +151,7 @@ export async function GET(req: NextRequest) {
       if (shouldNotify) {
         // Find push subscriptions for this user
         const subscriptions = await prisma.push_subscriptions.findMany({
-          where: { user_id: cand.id }
+          where: { user_id: emp.id }
         });
 
         for (const sub of subscriptions) {
