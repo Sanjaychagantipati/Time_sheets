@@ -59,7 +59,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       createdAt: updatedUser.created_at,
     });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("PUT /api/admin/employees/[id] error:", error);
+    return NextResponse.json({ error: "Failed to update employee details" }, { status: 500 });
   }
 }
 
@@ -75,6 +76,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     });
     return NextResponse.json({ message: "Employee deleted successfully" });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("DELETE /api/admin/employees/[id] error:", error);
+    return NextResponse.json({ error: "Failed to delete employee account" }, { status: 500 });
   }
 }
