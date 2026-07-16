@@ -66,8 +66,9 @@ export async function POST(req: NextRequest) {
       user: userResponse,
     });
   } catch (error: any) {
+    console.error("POST /api/auth/login error:", error);
     return NextResponse.json(
-      { error: error.message || "Authentication failed" },
+      { error: "Authentication failed due to an unexpected error" },
       { status: 500 }
     );
   }

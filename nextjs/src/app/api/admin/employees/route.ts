@@ -43,7 +43,8 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(formatted);
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("GET /api/admin/employees error:", error);
+    return NextResponse.json({ error: "Failed to retrieve employees list" }, { status: 500 });
   }
 }
 
@@ -118,6 +119,7 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("POST /api/admin/employees error:", error);
+    return NextResponse.json({ error: "Failed to create employee account" }, { status: 500 });
   }
 }

@@ -118,6 +118,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(formatted);
   } catch (error: any) {
     console.error("GET /api/admin/timesheets/exceptions error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Failed to retrieve exceptions list" }, { status: 500 });
   }
 }
