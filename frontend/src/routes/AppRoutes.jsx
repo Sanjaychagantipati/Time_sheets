@@ -1,35 +1,24 @@
-import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from './ProtectedRoute';
 import MainLayout from '../layouts/MainLayout';
 import AdminLayout from '../layouts/AdminLayout';
 import PWAInstallBanner from '../components/common/PWAInstallBanner';
 
-const LoginPage = lazy(() => import('../pages/LoginPage'));
-const EmployeeDashboard = lazy(() => import('../pages/EmployeeDashboard'));
-const AdminDashboard = lazy(() => import('../pages/AdminDashboard'));
-const AdminClients = lazy(() => import('../pages/AdminClients'));
-const AdminCandidates = lazy(() => import('../pages/AdminCandidates'));
-const AdminAttendance = lazy(() => import('../pages/AdminAttendance'));
-const AdminManualEntry = lazy(() => import('../pages/AdminManualEntry'));
-const LeaveManagement = lazy(() => import('../pages/LeaveManagement'));
-const AdminReports = lazy(() => import('../pages/AdminReports'));
-const CompanySettings = lazy(() => import('../pages/CompanySettings'));
-
-function PageLoader() {
-  return (
-    <div className="min-h-[50vh] w-full flex flex-col items-center justify-center gap-3">
-      <div className="w-8 h-8 border-3 border-[#FF7A00] border-t-transparent rounded-full animate-spin"></div>
-      <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">Loading...</span>
-    </div>
-  );
-}
+import LoginPage from '../pages/LoginPage';
+import EmployeeDashboard from '../pages/EmployeeDashboard';
+import AdminDashboard from '../pages/AdminDashboard';
+import AdminClients from '../pages/AdminClients';
+import AdminCandidates from '../pages/AdminCandidates';
+import AdminAttendance from '../pages/AdminAttendance';
+import AdminManualEntry from '../pages/AdminManualEntry';
+import LeaveManagement from '../pages/LeaveManagement';
+import AdminReports from '../pages/AdminReports';
+import CompanySettings from '../pages/CompanySettings';
 
 export default function AppRoutes() {
   return (
     <>
-      <Suspense fallback={<PageLoader />}>
-        <Routes>
+      <Routes>
           {/* Base Route: Login Page */}
           <Route path="/" element={<MainLayout><LoginPage /></MainLayout>} />
 
@@ -142,7 +131,6 @@ export default function AppRoutes() {
           {/* Redirect unknown routes back to Login (Base Path) */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </Suspense>
       <PWAInstallBanner />
     </>
   );
